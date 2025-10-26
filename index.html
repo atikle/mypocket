@@ -15,6 +15,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- ADD: Roboto font for footer -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;600&display=swap" rel="stylesheet">
     
     <!-- MOD: Async load Font Awesome for Performance -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" media="print" onload="this.media='all'" />
@@ -94,6 +96,10 @@
         /* ADD: Body padding for fixed header */
         body {
             padding-top: 70px; /* Offset for fixed header (15px + 40px + 15px) */
+            /* MOD: Flex layout to push footer down */
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
         }
 
         /* --- App Header --- */
@@ -182,6 +188,7 @@
             max-width: 900px; /* MOD: Narrower for a list view */
             margin: 30px auto;
             padding: 0 20px;
+            flex-grow: 1; /* MOD: Allow main to grow and push footer down */
         }
         
         /* MOD: Renamed to .sort-controls-container */
@@ -496,6 +503,33 @@
                 background-color: var(--hover-overlay);
             }
         }
+
+        /* --- ADD: Footer Styles --- */
+        .app-footer {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-color-2);
+            font-size: 14px;
+            flex-shrink: 0; /* Prevent footer from shrinking */
+        }
+
+        .atikle {
+            font-family: "Roboto", sans-serif;
+        }
+
+        .atikle-multicolor {
+            font-family: "Roboto", sans-serif;
+            font-weight: 600;
+            font-size: 16px;
+            background: linear-gradient(90.1deg, rgb(255, 85, 85) 0.1%, rgb(85, 85, 255) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            /* ADD: Broader compatibility for text fill */
+            text-fill-color: transparent;
+            color: transparent;
+            display: inline-block; /* ADD: Ensure background renders correctly */
+        }
     </style>
 </head>
 <body>
@@ -539,6 +573,10 @@
         </div>
     </main>
     
+    <!-- ADD: Footer HTML -->
+    <footer class="app-footer">
+        <p class="atikle-multicolor">atikle</p>
+    </footer>
 
     <script>
         // --- Storage Key (MUST match index.html) ---
@@ -690,90 +728,142 @@
 
         // MOD: Listener is still valid as it uses ID
         downloadPdfBtn.addEventListener('click', () => {
-            const doc = new jsPDF();
-            const items = getSortedItems();
-            const sortPreference = localStorage.getItem(POCKET_SORT_KEY) || 'latest';
-            
-            const itemDateOptions = {
-                weekday: 'long', 
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            };
+            // ADD: Console log and try/catch for debugging
+            console.log('Generating PDF...');
+            try {
+                const doc = new jsPDF();
+                const items = getSortedItems();
+                const sortPreference = localStorage.getItem(POCKET_SORT_KEY) || 'latest';
+                
+                // FIX: Define itemDateOptions here. It was floating free before.
+                const itemDateOptions = {
+                    weekday: 'long', 
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                };
+
+                // MOD: Add month formatter
             
             // --- PDF Styling ---
             const pageMargin = 15;
+            const pageHeight = doc.internal.pageSize.getHeight();
             const pageWidth = doc.internal.pageSize.getWidth() - (pageMargin * 2);
             const titleFontSize = 18;
             const headerFontSize = 12;
             const textFontSize = 10;
             const dateFontSize = 9;
+            const monthHeaderFontSize = 14;
             const lineHeight = 1.5;
-            let cursor = 20; // Top margin
+            let cursor = 0; // MOD: Start cursor at 0, will be set by header
 
-            // --- Helper to add text and manage cursor ---
-            function addText(text, size, x, isBold = false) {
-                if (cursor > 270) { // Check if new page is needed (A4 height is ~297)
-                    doc.addPage();
-                    cursor = 20;
+            const logoSVG = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512' fill='#ef4056'><path d='M0 48C0 21.5 21.5 0 48 0l0 48V441.4l130.1-92.9c8.3-5.9 19.6-5.9 27.9 0L336 441.4V48H48V0H336c26.5 0 48 21.5 48 48V488c0 22.1-23 36.5-42.4 25.8L192 397.1 42.4 513.8C23 524.5 0 510.1 0 488V48z'/></svg>`;
+
+            // --- PDF Header Function ---
+            function addPdfHeader() {
+                cursor = 20; // Reset cursor to top margin
+                doc.setFontSize(titleFontSize);
+                doc.setFont(undefined, 'bold');
+                doc.text("My Pocket Items", pageMargin, cursor);
+
+                try {
+                    // Place logo top-right (w: 10, h: 15, based on 384x512 ratio)
+                    doc.addImage(logoSVG, 'SVG', pageWidth + pageMargin - 12, cursor - (titleFontSize * 0.75), 10, 15);
+                } catch (e) {
+                    console.error("Could not add logo to PDF:", e);
                 }
+
+                cursor += titleFontSize * 0.5;
+
+                doc.setFontSize(headerFontSize);
+                doc.setFont(undefined, 'normal');
+                doc.text(`Sorted by: ${sortPreference.charAt(0).toUpperCase() + sortPreference.slice(1)}`, pageMargin, cursor);
+                cursor += headerFontSize + 10; // Extra space after header
+            }
+
+            // --- Helper to check for page break ---
+            function checkPageBreak(requiredHeight) {
+                if (cursor + requiredHeight > pageHeight - pageMargin) {
+                    doc.addPage();
+                    addPdfHeader();
+                }
+            }
+            
+            // --- Helper to add text and manage cursor ---
+            function addWrappedText(text, size, x, isBold = false) {
                 doc.setFontSize(size);
                 doc.setFont(undefined, isBold ? 'bold' : 'normal');
                 
-                // Handle line wrapping
                 const lines = doc.splitTextToSize(text, pageWidth);
-                doc.text(lines, x, cursor);
+                const textHeight = (lines.length * (size * 0.35)) + (lineHeight * 2);
                 
-                cursor += (lines.length * (size * 0.35)) + (lineHeight * 2); // Move cursor down
+                checkPageBreak(textHeight); // Check if this block fits
+
+                doc.text(lines, x, cursor);
+                cursor += textHeight; // Move cursor down
             }
 
-            // --- 1. Add Title ---
-            doc.setFontSize(titleFontSize);
-            doc.setFont(undefined, 'bold');
-            doc.text("My Pocket Items", pageMargin, cursor);
+            // --- 1. Add Initial Header ---
+            addPdfHeader();
 
-            // ADD: Add Logo
-            try {
-                const logoSVG = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512' fill='#ef4056'><path d='M0 48C0 21.5 21.5 0 48 0l0 48V441.4l130.1-92.9c8.3-5.9 19.6-5.9 27.9 0L336 441.4V48H48V0H336c26.5 0 48 21.5 48 48V488c0 22.1-23 36.5-42.4 25.8L192 397.1 42.4 513.8C23 524.5 0 510.1 0 488V48z'/></svg>`;
-                // Place logo top-right (w: 10, h: 15, based on 384x512 ratio)
-                doc.addImage(logoSVG, 'SVG', pageWidth + pageMargin - 12, cursor - (titleFontSize * 0.75), 10, 15);
-            } catch (e) {
-                console.error("Could not add logo to PDF:", e);
-            }
-
-            cursor += titleFontSize * 0.5;
-
-            // --- 2. Add Sort Info ---
-            doc.setFontSize(headerFontSize);
-            doc.setFont(undefined, 'normal');
-            doc.text(`Sorted by: ${sortPreference.charAt(0).toUpperCase() + sortPreference.slice(1)}`, pageMargin, cursor);
-            cursor += headerFontSize + 5;
-
-            // --- 3. Loop and add items ---
+            // --- 2. Loop and add items ---
             if (items.length === 0) {
-                 addText("Your pocket is empty.", textFontSize, pageMargin);
+                 addWrappedText("Your pocket is empty.", textFontSize, pageMargin);
             } else {
+                const showMonthHeaders = (sortPreference === 'latest' || sortPreference === 'oldest');
+                let currentMonthYear = ""; 
+
                 items.forEach((item, index) => {
-                    const itemDate = new Date(item.dateAdded).toLocaleDateString(undefined, itemDateOptions);
+                    const itemDateObj = new Date(item.dateAdded);
+                    const itemDate = itemDateObj.toLocaleDateString(undefined, itemDateOptions);
                     
+                    // --- Add Month Header if needed ---
+                    if (showMonthHeaders) {
+                        const monthYear = monthYearFormatter.format(itemDateObj);
+                        if (monthYear !== currentMonthYear) {
+                            currentMonthYear = monthYear;
+                            
+                            cursor += 10; // Extra space before new month
+                            const monthHeaderHeight = (monthHeaderFontSize * 0.35) + (lineHeight * 2) + 5;
+                            checkPageBreak(monthHeaderHeight); // Check for month header
+
+                            doc.setFontSize(monthHeaderFontSize);
+                            doc.setFont(undefined, 'bold');
+                            doc.text(monthYear, pageMargin, cursor);
+                            cursor += monthHeaderHeight;
+                        }
+                    }
+
+                    // --- Add Item ---
+                    const dateHeight = (dateFontSize * 0.35) + (lineHeight * 2);
+                    const lines = doc.splitTextToSize(item.text, pageWidth);
+                    const textHeight = (lines.length * (textFontSize * 0.35)) + (lineHeight * 2);
+                    const totalItemHeight = dateHeight + textHeight + 10; // +10 for padding
+
+                    checkPageBreak(totalItemHeight); // Check if whole item fits
+
                     // Add Date
-                    addText(itemDate, dateFontSize, pageMargin);
+                    addWrappedText(itemDate, dateFontSize, pageMargin);
                     cursor -= lineHeight * 1; // Move up a bit for text
                     
                     // Add Item Text
-                    addText(item.text, textFontSize, pageMargin, true);
+                    addWrappedText(item.text, textFontSize, pageMargin, true);
                     
-                    // MOD: Add padding after text
-                    cursor += 5; 
-
-                    // Add separator
-                    if (index < items.length - 1) {
-                        doc.setDrawColor(200, 200, 200); // Light gray
-                        // MOD: Draw line at current cursor pos
-                        doc.line(pageMargin, cursor, pageWidth + pageMargin, cursor);
-                    }
-                    cursor += 10; // MOD: Increased space for next item
+                    // Add padding after item
+                    cursor += 10; 
                 });
+            }
+
+            // --- 4. Save PDF ---
+            // MOD: Use dynamic filename with date
+            const today = new Date();
+            const dateString = today.toISOString().split('T')[0]; // YYYY-MM-DD
+            const fileName = `mypocket(${dateString}).pdf`;
+            doc.save(fileName);
+            console.log('PDF generation complete.');
+
+            } catch (e) {
+                console.error("Failed to generate PDF:", e);
             }
         });
 
