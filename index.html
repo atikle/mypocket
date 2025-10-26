@@ -212,6 +212,22 @@
             align-items: center;
             justify-content: center;
         }
+        
+        /* FIX 1: Add disabled styles for buttons */
+        .sort-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background-color: var(--card-background-1); /* Ensure background isn't transparent */
+            color: var(--text-color-2); /* Ensure text is visible but greyed */
+            border-color: var(--border-color-1); /* Reset border */
+        }
+        .sort-btn:disabled:hover {
+            /* Override hover effects when disabled */
+            background-color: var(--card-background-1);
+            color: var(--text-color-2);
+            border-color: var(--border-color-1);
+        }
+        
         .sort-btn:hover {
             background-color: var(--hover-overlay);
             border-color: var(--text-color-2);
@@ -229,7 +245,7 @@
             border-color: var(--text-color-2);
             color: var(--text-color-2);
         }
-        .sort-btn.download-btn:hover {
+        .sort-btn.download-btn:hover:not(:disabled) { /* MOD: Don't hover if disabled */
             background-color: var(--text-color-2);
             color: var(--card-background-1);
             border-color: var(--text-color-2);
@@ -241,7 +257,7 @@
             border-color: var(--pocket-delete-bg);
             color: var(--pocket-delete-bg);
         }
-        .sort-btn.clear-btn:hover {
+        .sort-btn.clear-btn:hover:not(:disabled) { /* MOD: Don't hover if disabled */
             background-color: var(--pocket-delete-bg);
             color: white;
         }
@@ -400,7 +416,8 @@
                 padding: 15px 20px;
             }
             .header-controls {
-                width: 100%;
+                /* FIX 2: Remove width: 100% to keep controls on the same line */
+                /* width: 100%; */ 
                 justify-content: flex-end;
             }
             .main-container {
@@ -693,6 +710,16 @@
             doc.setFontSize(titleFontSize);
             doc.setFont(undefined, 'bold');
             doc.text("My Pocket Items", pageMargin, cursor);
+
+            // ADD: Add Logo
+            try {
+                const logoDataURL = document.querySelector("link[rel='icon']").href;
+                // Place logo top-right (w: 10, h: 15, based on 384x512 ratio)
+                doc.addImage(logoDataURL, 'SVG', pageWidth + pageMargin - 12, cursor - (titleFontSize * 0.75), 10, 15);
+            } catch (e) {
+                console.error("Could not add logo to PDF:", e);
+            }
+
             cursor += titleFontSize * 0.5;
 
             // --- 2. Add Sort Info ---
@@ -715,12 +742,16 @@
                     // Add Item Text
                     addText(item.text, textFontSize, pageMargin, true);
                     
+                    // MOD: Add padding after text
+                    cursor += 5; 
+
                     // Add separator
                     if (index < items.length - 1) {
                         doc.setDrawColor(200, 200, 200); // Light gray
-                        doc.line(pageMargin, cursor - 5, pageWidth + pageMargin, cursor - 5);
+                        // MOD: Draw line at current cursor pos
+                        doc.line(pageMargin, cursor, pageWidth + pageMargin, cursor);
                     }
-                    cursor += 5;
+                    cursor += 10; // MOD: Increased space for next item
                 });
             }
 
@@ -737,11 +768,19 @@
 
             if (items.length === 0) {
                 pocketGridContainer.innerHTML = '<p class="pocket-empty-message">Your pocket is empty.</p>';
-                clearAllBtn.style.display = 'none'; // Hide clear all button
+                // FIX 1: Disable buttons instead of hiding
+                clearAllBtn.style.display = 'none'; // MOD: Hide clear all button
+                clearAllBtn.setAttribute('aria-disabled', 'true');
+                downloadPdfBtn.disabled = true;
+                downloadPdfBtn.setAttribute('aria-disabled', 'true');
                 return;
             }
             
-            clearAllBtn.style.display = ''; // Show clear all button
+            // FIX 1: Enable buttons if items exist
+            clearAllBtn.style.display = ''; // MOD: Show clear all button
+            clearAllBtn.setAttribute('aria-disabled', 'false');
+            downloadPdfBtn.disabled = false;
+            downloadPdfBtn.setAttribute('aria-disabled', 'false');
             resetClearAllBtn(); // Reset confirm state
 
             // MOD: Update active sort button
