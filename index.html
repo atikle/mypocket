@@ -91,6 +91,11 @@
             transition: background-color var(--transition-speed-normal), color var(--transition-speed-normal);
         }
 
+        /* ADD: Body padding for fixed header */
+        body {
+            padding-top: 70px; /* Offset for fixed header (15px + 40px + 15px) */
+        }
+
         /* --- App Header --- */
         .app-header {
             background-color: var(--card-background-1);
@@ -99,7 +104,8 @@
             justify-content: space-between;
             align-items: center;
             box-shadow: var(--shadow-2);
-            position: sticky;
+            position: fixed; /* MOD: Changed from sticky to fixed */
+            width: 100%; /* ADD: Ensure it spans full width */
             top: 0;
             z-index: 100;
             border-bottom: 1px solid var(--border-color-1);
@@ -426,17 +432,32 @@
             
             /* MOD: Mobile sort controls */
             .sort-controls-container {
-                flex-direction: column;
-                align-items: stretch;
+                /* REMOVED: flex-direction: column; */
+                /* REMOVED: align-items: stretch; */
                 gap: 15px;
                 margin-bottom: 15px;
             }
             .sort-options-group {
                 gap: 6px;
+                /* ADD: Make sort options scroll horizontally */
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                flex-shrink: 1; /* Allow this group to shrink */
+                min-width: 0; /* Required for shrinking */
+                /* ADD: Hide scrollbar */
+                -ms-overflow-style: none;  /* IE and Edge */
+                scrollbar-width: none;  /* Firefox */
             }
+
+            /* ADD: Hide scrollbar for Webkit */
+            .sort-options-group::-webkit-scrollbar {
+                display: none;
+            }
+
             .sort-actions-group {
                 gap: 6px;
-                justify-content: flex-end; /* Align right */
+                /* REMOVED: justify-content: flex-end; (parent handles spacing) */
+                flex-shrink: 0; /* Prevent this group from shrinking */
             }
 
             .sort-btn {
@@ -713,9 +734,9 @@
 
             // ADD: Add Logo
             try {
-                const logoDataURL = document.querySelector("link[rel='icon']").href;
+                const logoSVG = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512' fill='#ef4056'><path d='M0 48C0 21.5 21.5 0 48 0l0 48V441.4l130.1-92.9c8.3-5.9 19.6-5.9 27.9 0L336 441.4V48H48V0H336c26.5 0 48 21.5 48 48V488c0 22.1-23 36.5-42.4 25.8L192 397.1 42.4 513.8C23 524.5 0 510.1 0 488V48z'/></svg>`;
                 // Place logo top-right (w: 10, h: 15, based on 384x512 ratio)
-                doc.addImage(logoDataURL, 'SVG', pageWidth + pageMargin - 12, cursor - (titleFontSize * 0.75), 10, 15);
+                doc.addImage(logoSVG, 'SVG', pageWidth + pageMargin - 12, cursor - (titleFontSize * 0.75), 10, 15);
             } catch (e) {
                 console.error("Could not add logo to PDF:", e);
             }
@@ -754,9 +775,6 @@
                     cursor += 10; // MOD: Increased space for next item
                 });
             }
-
-            // --- 4. Save PDF ---
-            doc.save('my-pocket-items.pdf');
         });
 
 
@@ -933,4 +951,6 @@
     </script>
 </body>
 </html>
+
+
 
