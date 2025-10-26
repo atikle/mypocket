@@ -498,6 +498,19 @@
             font-size: 13px;
             font-weight: 500;
             color: var(--text-color-2);
+            /* ADD: Allow wrapping for date and (edited) text */
+            flex-grow: 1;
+            flex-wrap: wrap;
+        }
+
+        /* ADD: Edited indicator style */
+        .edited-indicator {
+            font-size: 12px;
+            font-style: italic;
+            color: var(--text-color-2);
+            opacity: 0.8;
+            margin-left: 4px;
+            white-space: nowrap; /* Prevent (edited) from wrapping alone */
         }
 
         /* ADD: Post Body */
@@ -948,15 +961,26 @@
                 }
             }
 
-            // --- ADD: Data Migration ---
+            // --- ADD: Data Migration (for old string-based items) ---
             if (items.length > 0 && typeof items[0] === 'string') {
                 items = items.map(itemText => {
                     return {
                         text: itemText,
-                        dateAdded: new Date().toISOString()
+                        dateAdded: new Date().toISOString(),
+                        wasEdited: false // MOD: Add wasEdited flag
                     };
                 });
                 savePocketItems(items);
+            }
+            
+            // --- ADD: Data Migration (for items lacking wasEdited) ---
+            if (items.length > 0 && items[0].wasEdited === undefined) {
+                 items.forEach(item => {
+                    if (item.wasEdited === undefined) {
+                        item.wasEdited = false;
+                    }
+                 });
+                 savePocketItems(items);
             }
             // --- END: Data Migration ---
 
@@ -975,7 +999,8 @@
 
             const newItem = {
                 text: text.trim(),
-                dateAdded: new Date().toISOString()
+                dateAdded: new Date().toISOString(),
+                wasEdited: false // MOD: Add wasEdited flag
             };
 
             const items = getPocketItems();
@@ -1117,7 +1142,6 @@
                     item.text.toLowerCase().includes(searchTerm)
                 ) : allItems;
                 
-                // FIX: Define itemDateOptions here. It was floating free before.
                 const itemDateOptions = {
                     weekday: 'long', 
                     year: 'numeric',
@@ -1125,93 +1149,89 @@
                     day: 'numeric'
                 };
 
-                // MOD: Add month formatter
-                // FIX: Define monthYearFormatter here. It was missing.
                 const monthYearFormatter = new Intl.DateTimeFormat(undefined, {
                     year: 'numeric',
                     month: 'long'
                 });
             
             // --- PDF Styling ---
-            const pageMargin = 15;
-            const pageHeight = doc.internal.pageSize.getHeight();
-            const pageWidth = doc.internal.pageSize.getWidth() - (pageMargin * 2);
-            const titleFontSize = 18;
-            const headerFontSize = 12;
-            const textFontSize = 10;
-            const dateFontSize = 9;
-            const monthHeaderFontSize = 14;
-            const lineHeight = 1.5;
-            let cursor = 0; // MOD: Start cursor at 0, will be set by header
+            const PAGE_MARGIN = 20;
+            const PAGE_WIDTH = doc.internal.pageSize.getWidth();
+            const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
+            const CONTENT_WIDTH = PAGE_WIDTH - (PAGE_MARGIN * 2);
+            
+            const BRAND_COLOR = '#ef4056';
+            const TITLE_COLOR = '#050505';
+            const TEXT_COLOR = '#050505';
+            const SUBTLE_TEXT_COLOR = '#65676b';
+            const CARD_BG_COLOR = '#FFFFFF';
+            const BORDER_COLOR = '#E0E0E0';
+            const HEADER_TEXT_COLOR = '#FFFFFF';
 
-            const logoSVG = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512' fill='#ef4056'><path d='M0 48C0 21.5 21.5 0 48 0l0 48V441.4l130.1-92.9c8.3-5.9 19.6-5.9 27.9 0L336 441.4V48H48V0H336c26.5 0 48 21.5 48 48V488c0 22.1-23 36.5-42.4 25.8L192 397.1 42.4 513.8C23 524.5 0 510.1 0 488V48z'/></svg>`;
+            let cursor = 0;
+            let currentPage = 1;
+            
+            // --- PDF Header Function ---
+            function addPageHeader() {
+                // Draw header background
+                doc.setFillColor(BRAND_COLOR);
+                doc.rect(0, 0, PAGE_WIDTH, 45, 'F'); // Filled rectangle
 
-// --- PDF Header Function ---
-            function addPdfHeader() {
-                cursor = 20; // Reset cursor to top margin
-                doc.setFontSize(titleFontSize);
+                // Add Title
+                doc.setFontSize(20);
                 doc.setFont(undefined, 'bold');
-                doc.text("My Pocket Items", pageMargin, cursor);
+                doc.setTextColor(HEADER_TEXT_COLOR);
+                doc.text("My Pocket", PAGE_MARGIN, 28);
 
-                try {
-                    // Place logo top-right (w: 10, h: 15, based on 384x512 ratio)
-                    doc.addImage(logoSVG, 'SVG', pageWidth + pageMargin - 12, cursor - (titleFontSize * 0.75), 10, 15);
-                } catch (e) {
-                    console.error("Could not add logo to PDF:", e);
-                }
-
-                cursor += titleFontSize * 0.5;
-
-                doc.setFontSize(headerFontSize);
+                // Add Sort/Filter Info
+                doc.setFontSize(10);
                 doc.setFont(undefined, 'normal');
-                doc.text(`Sorted by: ${sortPreference.charAt(0).toUpperCase() + sortPreference.slice(1)}`, pageMargin, cursor);
-                cursor += headerFontSize * 0.5; // Smaller gap
-
-                // ADD: Show search term if active
+                
+                let sortInfo = `Sorted by: ${sortPreference.charAt(0).toUpperCase() + sortPreference.slice(1)}`;
+                doc.text(sortInfo, PAGE_WIDTH - PAGE_MARGIN, 22, { align: 'right' });
+                
                 if (searchTerm) {
-                    doc.setFontSize(headerFontSize - 1);
-                    doc.setFont(undefined, 'italic');
-                    // Ensure search term fits
-                    const splitTerm = doc.splitTextToSize(`Filtered by: "${searchTerm}"`, pageWidth);
-                    doc.text(splitTerm, pageMargin, cursor);
-                    cursor += (splitTerm.length * (headerFontSize - 1) * 0.35) + 10;
-                } else {
-                    cursor += headerFontSize + 10; // Extra space after header
+                    const filterInfo = doc.splitTextToSize(`Filtered by: "${searchTerm}"`, CONTENT_WIDTH / 2); // Max half width
+                    doc.text(filterInfo, PAGE_WIDTH - PAGE_MARGIN, 28, { align: 'right' });
                 }
+
+                // Reset cursor for content
+                cursor = 60; 
+            }
+
+            // --- PDF Footer Function ---
+            function addPageFooter() {
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'normal');
+                doc.setTextColor(SUBTLE_TEXT_COLOR);
+                const footerText = `Page ${currentPage}`;
+                doc.text(footerText, PAGE_WIDTH / 2, PAGE_HEIGHT - 10, { align: 'center' });
             }
 
             // --- Helper to check for page break ---
             function checkPageBreak(requiredHeight) {
-                if (cursor + requiredHeight > pageHeight - pageMargin) {
+                // Check if content fits, leaving margin for footer
+                if (cursor + requiredHeight > PAGE_HEIGHT - 25) {
+                    addPageFooter();
                     doc.addPage();
-                    addPdfHeader();
+                    currentPage++;
+                    addPageHeader();
+                    return true;
                 }
-            }
-            
-            // --- Helper to add text and manage cursor ---
-            function addWrappedText(text, size, x, isBold = false) {
-                doc.setFontSize(size);
-                doc.setFont(undefined, isBold ? 'bold' : 'normal');
-                
-                const lines = doc.splitTextToSize(text, pageWidth);
-                const textHeight = (lines.length * (size * 0.35)) + (lineHeight * 2);
-                
-                checkPageBreak(textHeight); // Check if this block fits
-
-                doc.text(lines, x, cursor);
-                cursor += textHeight; // Move cursor down
+                return false;
             }
 
             // --- 1. Add Initial Header ---
-            addPdfHeader();
+            addPageHeader();
 
             // --- 2. Loop and add items ---
             if (items.length === 0) {
-                 // MOD: Show different message if searching
+                 doc.setFontSize(12);
+                 doc.setTextColor(SUBTLE_TEXT_COLOR);
                  if (searchTerm) {
-                    addWrappedText(`No items match your search for "${searchTerm}".`, textFontSize, pageMargin);
+                    doc.text(`No items match your search for "${searchTerm}".`, PAGE_MARGIN, cursor);
                  } else {
-                    addWrappedText("Your pocket is empty.", textFontSize, pageMargin);
+                    doc.text("Your pocket is empty.", PAGE_MARGIN, cursor);
                  }
             } else {
                 const showMonthHeaders = (sortPreference === 'latest' || sortPreference === 'oldest');
@@ -1219,47 +1239,71 @@
 
                 items.forEach((item, index) => {
                     const itemDateObj = new Date(item.dateAdded);
-                    const itemDate = itemDateObj.toLocaleDateString(undefined, itemDateOptions);
+                    let itemDate = itemDateObj.toLocaleDateString(undefined, itemDateOptions);
                     
+                    if (item.wasEdited) {
+                        itemDate += " (edited)";
+                    }
+
                     // --- Add Month Header if needed ---
                     if (showMonthHeaders) {
                         const monthYear = monthYearFormatter.format(itemDateObj);
                         if (monthYear !== currentMonthYear) {
                             currentMonthYear = monthYear;
                             
-                            cursor += 10; // Extra space before new month
-                            const monthHeaderHeight = (monthHeaderFontSize * 0.35) + (lineHeight * 2) + 5;
-                            checkPageBreak(monthHeaderHeight); // Check for month header
+                            const monthHeaderHeight = 20; // Extra space + text height
+                            checkPageBreak(monthHeaderHeight); 
 
-                            doc.setFontSize(monthHeaderFontSize);
+                            doc.setFontSize(16);
                             doc.setFont(undefined, 'bold');
-                            doc.text(monthYear, pageMargin, cursor);
+                            doc.setTextColor(TITLE_COLOR);
+                            doc.text(monthYear, PAGE_MARGIN, cursor);
                             cursor += monthHeaderHeight;
                         }
                     }
-
-                    // --- Add Item ---
-                    const dateHeight = (dateFontSize * 0.35) + (lineHeight * 2);
-                    const lines = doc.splitTextToSize(item.text, pageWidth);
-                    const textHeight = (lines.length * (textFontSize * 0.35)) + (lineHeight * 2);
-                    const totalItemHeight = dateHeight + textHeight + 10; // +10 for padding
-
-                    checkPageBreak(totalItemHeight); // Check if whole item fits
-
-                    // Add Date
-                    addWrappedText(itemDate, dateFontSize, pageMargin);
-                    cursor -= lineHeight * 1; // Move up a bit for text
                     
+                    // --- Calculate Card Height ---
+                    doc.setFontSize(10);
+                    doc.setFont(undefined, 'normal');
+                    const textLines = doc.splitTextToSize(item.text, CONTENT_WIDTH - 20); // 10px padding
+                    const textHeight = doc.getTextDimensions(textLines).h;
+                    const dateHeight = 10;
+                    const cardPadding = 30; // 15 top, 15 bottom
+                    const cardSpacing = 10;
+                    
+                    const totalCardHeight = textHeight + dateHeight + cardPadding;
+                    
+                    // --- Check Page Break for Card ---
+                    checkPageBreak(totalCardHeight + cardSpacing);
+
+                    // --- Draw Card ---
+                    doc.setDrawColor(BORDER_COLOR);
+                    doc.setFillColor(CARD_BG_COLOR);
+                    doc.roundedRect(PAGE_MARGIN, cursor, CONTENT_WIDTH, totalCardHeight, 3, 3, 'FD'); // Fill and Draw
+
+                    let cardCursor = cursor + 15; // Top padding
+
                     // Add Item Text
-                    addWrappedText(item.text, textFontSize, pageMargin, true);
+                    doc.setFontSize(10);
+                    doc.setFont(undefined, 'normal');
+                    doc.setTextColor(TEXT_COLOR);
+                    doc.text(textLines, PAGE_MARGIN + 10, cardCursor);
+                    cardCursor += textHeight + 10; // Space between text and date
+                    
+                    // Add Date
+                    doc.setFontSize(9);
+                    doc.setTextColor(SUBTLE_TEXT_COLOR);
+                    doc.text(itemDate, PAGE_MARGIN + 10, cardCursor);
                     
                     // Add padding after item
-                    cursor += 10; 
+                    cursor += totalCardHeight + cardSpacing; 
                 });
             }
 
-            // --- 4. Save PDF ---
-            // MOD: Revert filename to original
+            // --- 4. Add Final Footer ---
+            addPageFooter();
+
+            // --- 5. Save PDF ---
             doc.save('my-pocket-items.pdf');
             console.log('PDF generation complete.');
 
@@ -1379,6 +1423,10 @@
                     console.warn("Could not parse date:", item.dateAdded);
                 }
                 
+                // MOD: Add (edited) indicator
+                const wasEdited = item.wasEdited || false;
+                const editedIndicator = wasEdited ? '<span class="edited-indicator">(edited)</span>' : '';
+
                 const textNode = document.createTextNode(item.text);
                 const textDiv = document.createElement('div');
                 textDiv.className = 'item-text';
@@ -1392,7 +1440,7 @@
                             <i class="fa-solid fa-bookmark" aria-hidden="true"></i>
                         </div>
                         <div class="post-header-date">
-                            ${itemDate}
+                            ${itemDate}${editedIndicator}
                         </div>
                     </div>
                     <div class="post-body">
@@ -1450,6 +1498,8 @@
             
             if (itemIndex > -1) {
                 items[itemIndex].text = newText.trim();
+                items[itemIndex].dateAdded = new Date().toISOString(); // MOD: Update timestamp
+                items[itemIndex].wasEdited = true; // MOD: Set edited flag
                 savePocketItems(items);
                 renderPocketGrid(); // Re-render to show update and clear edit state
             } else {
