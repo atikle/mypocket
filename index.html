@@ -21,6 +21,9 @@
     <noscript>
       <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     </noscript>
+    
+    <!-- ADD: jsPDF library for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <style>
         * {
@@ -125,11 +128,9 @@
             /* MOD: Allow to grow and take space */
             flex-grow: 1;
         }
-        
-        /* REMOVED: .sort-select styles */
 
-
-        #darkModeToggle {
+        /* MOD: Re-using button style for download */
+        #darkModeToggle { /* REMOVED: #downloadPdfBtn */
             background-color: transparent;
             color: var(--text-color-2);
             border: none;
@@ -146,7 +147,7 @@
             /* MOD: Ensure it doesn't shrink */
             flex-shrink: 0;
         }
-        #darkModeToggle:hover {
+        #darkModeToggle:hover { /* REMOVED: #downloadPdfBtn:hover */
             background-color: var(--hover-overlay);
             color: var(--text-color-1);
         }
@@ -177,13 +178,24 @@
             padding: 0 20px;
         }
         
-        /* ADD: New Sort Controls styles */
-        .sort-controls {
+        /* MOD: Renamed to .sort-controls-container */
+        .sort-controls-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px; /* MOD: Gap between left/right groups */
+            margin-bottom: 20px;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* ADD: Groups for sort buttons */
+        .sort-options-group,
+        .sort-actions-group {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
-            margin-bottom: 20px;
         }
+        
         .sort-btn {
             font-family: 'Inter', sans-serif;
             font-size: 14px;
@@ -195,6 +207,10 @@
             color: var(--text-color-2);
             cursor: pointer;
             transition: all var(--transition-speed-fast) ease-out;
+            /* ADD: For icon alignment */
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
         .sort-btn:hover {
             background-color: var(--hover-overlay);
@@ -206,6 +222,46 @@
             color: white;
             border-color: var(--pocket-brand);
         }
+        
+        /* ADD: Download button style */
+        .sort-btn.download-btn {
+            background-color: transparent;
+            border-color: var(--text-color-2);
+            color: var(--text-color-2);
+        }
+        .sort-btn.download-btn:hover {
+            background-color: var(--text-color-2);
+            color: var(--card-background-1);
+            border-color: var(--text-color-2);
+        }
+
+        /* ADD: Clear All button styles */
+        .sort-btn.clear-btn {
+            background-color: transparent;
+            border-color: var(--pocket-delete-bg);
+            color: var(--pocket-delete-bg);
+        }
+        .sort-btn.clear-btn:hover {
+            background-color: var(--pocket-delete-bg);
+            color: white;
+        }
+        .sort-btn.clear-btn.confirm-active {
+            background-color: var(--pocket-delete-bg);
+            color: white;
+        }
+        /* ADD: Hide/show icon/text on confirm */
+        .sort-btn.clear-btn.confirm-active .btn-text {
+            display: inline;
+        }
+        .sort-btn.clear-btn.confirm-active i {
+            display: none;
+        }
+
+        /* ADD: Button text style */
+        .sort-btn .btn-text {
+            margin-left: 6px;
+        }
+
         .sort-btn:focus {
             outline: none;
         }
@@ -342,33 +398,61 @@
         @media (max-width: 640px) {
             .app-header {
                 padding: 15px 20px;
-                /* MOD: Removed column direction, rely on wrap */
-                /* flex-direction: column; */ 
-                /* gap: 10px; */
-                /* align-items: flex-start; */
             }
             .header-controls {
                 width: 100%;
-                justify-content: flex-end; /* MOD: Was space-between */
+                justify-content: flex-end;
             }
             .main-container {
                 margin: 20px auto;
             }
-            /* ADD: Mobile sort controls */
-            .sort-controls {
-                gap: 6px;
+            
+            /* MOD: Mobile sort controls */
+            .sort-controls-container {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 15px;
                 margin-bottom: 15px;
             }
+            .sort-options-group {
+                gap: 6px;
+            }
+            .sort-actions-group {
+                gap: 6px;
+                justify-content: flex-end; /* Align right */
+            }
+
             .sort-btn {
                 font-size: 13px;
                 padding: 6px 12px;
             }
+            
+            /* ADD: Hide text on action buttons */
+            .sort-btn.download-btn .btn-text,
+            .sort-btn.clear-btn .btn-text {
+                display: none;
+            }
+            
+            /* MOD: Keep padding consistent */
+            .sort-btn.download-btn,
+            .sort-btn.clear-btn {
+                padding: 6px 12px; 
+            }
+            
+            /* MOD: Show text for confirm */
+            .sort-btn.clear-btn.confirm-active {
+                padding: 6px 12px;
+            }
+            .sort-btn.clear-btn.confirm-active .btn-text {
+                display: inline;
+            }
+
 
             #pocketGridContainer {
-                gap: 15px; /* MOD: Was 12px */
+                gap: 15px;
             }
             .item-action-btn {
-                opacity: 0.8; /* MOD: Was 1 */
+                opacity: 0.8;
             }
             .item-action-btn:hover {
                 background-color: var(--hover-overlay);
@@ -384,7 +468,7 @@
             My Pocket
         </h1>
         <div class="header-controls">
-            <!-- REMOVED: Sort Select -->
+            <!-- REMOVED: Download PDF Button -->
             <button id="darkModeToggle" title="Toggle Theme" aria-label="Toggle Theme" aria-pressed="false">
                 <i class="fa-solid fa-moon" aria-hidden="true"></i>
             </button>
@@ -392,12 +476,24 @@
     </header>
 
     <main class="main-container">
-        <!-- ADD: New Sort Controls -->
-        <div class="sort-controls" role="toolbar" aria-label="Sort items">
-            <button class="sort-btn active" data-sort="latest" aria-pressed="true">Latest</button>
-            <button class="sort-btn" data-sort="oldest" aria-pressed="false">Oldest</button>
-            <button class="sort-btn" data-sort="az" aria-pressed="false">A-Z</button>
-            <button class="sort-btn" data-sort="za" aria-pressed="false">Z-A</button>
+        <!-- MOD: New Sort Controls Structure -->
+        <div class="sort-controls-container" role="toolbar" aria-label="Page controls">
+            <div class="sort-options-group" role="group" aria-label="Sort items">
+                <button class="sort-btn active" data-sort="latest" aria-pressed="true">Latest</button>
+                <button class="sort-btn" data-sort="oldest" aria-pressed="false">Oldest</button>
+                <button class="sort-btn" data-sort="az" aria-pressed="false">A-Z</button>
+                <button class="sort-btn" data-sort="za" aria-pressed="false">Z-A</button>
+            </div>
+            <div class="sort-actions-group" role="group" aria-label="Page actions">
+                <button class="sort-btn download-btn" id="downloadPdfBtn">
+                    <i class="fa-solid fa-download" aria-hidden="true"></i>
+                    <span class="btn-text">Download</span>
+                </button>
+                <button class="sort-btn clear-btn" id="clearAllBtn" data-default-text="Clear All">
+                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                    <span class="btn-text">Clear All</span>
+                </button>
+            </div>
         </div>
 
         <div id="pocketGridContainer">
@@ -416,8 +512,16 @@
         const themeToggleButton = document.getElementById('darkModeToggle');
         const themeIcon = themeToggleButton.querySelector('i');
         const pocketGridContainer = document.getElementById('pocketGridContainer');
-        // MOD: Sort controls container
-        const sortControls = document.querySelector('.sort-controls');
+        // MOD: Renamed variable
+        const sortControlsContainer = document.querySelector('.sort-controls-container');
+        // ADD: New group element
+        const sortOptionsGroup = document.querySelector('.sort-options-group');
+        // ADD: New button elements
+        const clearAllBtn = document.getElementById('clearAllBtn');
+        const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+        
+        // ADD: For PDF generation
+        const { jsPDF } = window.jspdf;
 
         // --- LocalStorage Functions ---
         function getPocketItems() {
@@ -471,13 +575,21 @@
             applyTheme(theme);
         });
         
-        // MOD: New Sort Button Logic
-        sortControls.addEventListener('click', (e) => {
+        // --- Sort Button Logic ---
+        // MOD: Listen on the container
+        sortControlsContainer.addEventListener('click', (e) => {
             const clickedButton = e.target.closest('.sort-btn');
-            if (!clickedButton) return; // Exit if click wasn't on a button
+            if (!clickedButton) return; 
 
-            // Remove active class from all buttons
-            sortControls.querySelectorAll('.sort-btn').forEach(btn => {
+            // Handle buttons in the actions group separately (they have their own listeners)
+            if (clickedButton.closest('.sort-actions-group')) {
+                return;
+            }
+            
+            // --- This code now only runs for sort buttons ---
+
+            // Remove active class from all *sort* buttons
+            sortOptionsGroup.querySelectorAll('.sort-btn').forEach(btn => {
                 btn.classList.remove('active');
                 btn.setAttribute('aria-pressed', 'false');
             });
@@ -492,20 +604,39 @@
             renderPocketGrid();
         });
 
-        // --- Render Logic ---
-        function renderPocketGrid() {
+        // --- ADD: Clear All Logic ---
+        function resetClearAllBtn() {
+            clearAllBtn.classList.remove('confirm-active');
+            // MOD: Target the span
+            clearAllBtn.querySelector('.btn-text').textContent = clearAllBtn.dataset.defaultText;
+        }
+
+        clearAllBtn.addEventListener('click', () => {
+            if (clearAllBtn.classList.contains('confirm-active')) {
+                // Second click: Perform deletion
+                savePocketItems([]);
+                renderPocketGrid();
+                resetClearAllBtn();
+            } else {
+                // First click: Show confirmation
+                clearAllBtn.classList.add('confirm-active');
+                // MOD: Target the span
+                clearAllBtn.querySelector('.btn-text').textContent = 'Are you sure?';
+            }
+        });
+        // Reset button if user clicks away
+        clearAllBtn.addEventListener('mouseleave', () => {
+            if(clearAllBtn.classList.contains('confirm-active')) {
+                setTimeout(resetClearAllBtn, 2000); // Reset after 2s
+            }
+        });
+        
+        // --- ADD: Download PDF Logic ---
+        
+        // Helper function to get sorted items
+        function getSortedItems() {
             const items = getPocketItems();
-            
-            // ADD: Apply sorting
             const sortPreference = localStorage.getItem(POCKET_SORT_KEY) || 'latest';
-            
-            // MOD: Update active sort button
-            const sortButtons = document.querySelectorAll('.sort-controls .sort-btn');
-            sortButtons.forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.sort === sortPreference);
-                btn.setAttribute('aria-pressed', btn.dataset.sort === sortPreference);
-            });
-            
             
             if (sortPreference === 'oldest') {
                 items.sort((a, b) => new Date(a.dateAdded) - new Date(b.dateAdded));
@@ -514,17 +645,113 @@
             } else if (sortPreference === 'za') {
                 items.sort((a, b) => b.text.localeCompare(a.text, undefined, { sensitivity: 'base' }));
             } else {
-                // Default to 'latest'
                 items.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
             }
+            return items;
+        }
 
+        // MOD: Listener is still valid as it uses ID
+        downloadPdfBtn.addEventListener('click', () => {
+            const doc = new jsPDF();
+            const items = getSortedItems();
+            const sortPreference = localStorage.getItem(POCKET_SORT_KEY) || 'latest';
+            
+            const itemDateOptions = {
+                weekday: 'long', 
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            };
+            
+            // --- PDF Styling ---
+            const pageMargin = 15;
+            const pageWidth = doc.internal.pageSize.getWidth() - (pageMargin * 2);
+            const titleFontSize = 18;
+            const headerFontSize = 12;
+            const textFontSize = 10;
+            const dateFontSize = 9;
+            const lineHeight = 1.5;
+            let cursor = 20; // Top margin
+
+            // --- Helper to add text and manage cursor ---
+            function addText(text, size, x, isBold = false) {
+                if (cursor > 270) { // Check if new page is needed (A4 height is ~297)
+                    doc.addPage();
+                    cursor = 20;
+                }
+                doc.setFontSize(size);
+                doc.setFont(undefined, isBold ? 'bold' : 'normal');
+                
+                // Handle line wrapping
+                const lines = doc.splitTextToSize(text, pageWidth);
+                doc.text(lines, x, cursor);
+                
+                cursor += (lines.length * (size * 0.35)) + (lineHeight * 2); // Move cursor down
+            }
+
+            // --- 1. Add Title ---
+            doc.setFontSize(titleFontSize);
+            doc.setFont(undefined, 'bold');
+            doc.text("My Pocket Items", pageMargin, cursor);
+            cursor += titleFontSize * 0.5;
+
+            // --- 2. Add Sort Info ---
+            doc.setFontSize(headerFontSize);
+            doc.setFont(undefined, 'normal');
+            doc.text(`Sorted by: ${sortPreference.charAt(0).toUpperCase() + sortPreference.slice(1)}`, pageMargin, cursor);
+            cursor += headerFontSize + 5;
+
+            // --- 3. Loop and add items ---
+            if (items.length === 0) {
+                 addText("Your pocket is empty.", textFontSize, pageMargin);
+            } else {
+                items.forEach((item, index) => {
+                    const itemDate = new Date(item.dateAdded).toLocaleDateString(undefined, itemDateOptions);
+                    
+                    // Add Date
+                    addText(itemDate, dateFontSize, pageMargin);
+                    cursor -= lineHeight * 1; // Move up a bit for text
+                    
+                    // Add Item Text
+                    addText(item.text, textFontSize, pageMargin, true);
+                    
+                    // Add separator
+                    if (index < items.length - 1) {
+                        doc.setDrawColor(200, 200, 200); // Light gray
+                        doc.line(pageMargin, cursor - 5, pageWidth + pageMargin, cursor - 5);
+                    }
+                    cursor += 5;
+                });
+            }
+
+            // --- 4. Save PDF ---
+            doc.save('my-pocket-items.pdf');
+        });
+
+
+        // --- Render Logic ---
+        function renderPocketGrid() {
+            const items = getSortedItems(); // Use helper to get sorted items
 
             pocketGridContainer.innerHTML = ''; // Clear grid
 
             if (items.length === 0) {
                 pocketGridContainer.innerHTML = '<p class="pocket-empty-message">Your pocket is empty.</p>';
+                clearAllBtn.style.display = 'none'; // Hide clear all button
                 return;
             }
+            
+            clearAllBtn.style.display = ''; // Show clear all button
+            resetClearAllBtn(); // Reset confirm state
+
+            // MOD: Update active sort button
+            const sortButtons = document.querySelectorAll('.sort-options-group .sort-btn');
+            const sortPreference = localStorage.getItem(POCKET_SORT_KEY) || 'latest';
+            sortButtons.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.sort === sortPreference);
+                btn.setAttribute('aria-pressed', btn.dataset.sort === sortPreference);
+            });
+
 
             const itemDateOptions = {
                 weekday: 'long', 
@@ -539,9 +766,11 @@
             });
             let currentMonthYear = ""; 
 
-            // MOD: Grouping logic should respect sorting
-            // If sorting A-Z, don't show month headers
-            const showMonthHeaders = (sortPreference === 'latest' || sortPreference === 'oldest');
+            const showMonthHeaders = (
+                localStorage.getItem(POCKET_SORT_KEY) === 'latest' || 
+                localStorage.getItem(POCKET_SORT_KEY) === 'oldest' ||
+                !localStorage.getItem(POCKET_SORT_KEY) // Default case
+            );
 
 
             items.forEach((item) => {
@@ -566,9 +795,8 @@
                 }
                 // --- End Grouping Logic ---
 
-                // MOD: Create new post element
                 const itemEl = document.createElement('div');
-                itemEl.className = 'pocket-post-item'; // MOD: New class
+                itemEl.className = 'pocket-post-item';
                 itemEl.dataset.dateAdded = item.dateAdded;
                 
                 let itemDate = "Date not available";
@@ -578,14 +806,11 @@
                     console.warn("Could not parse date:", item.dateAdded);
                 }
                 
-                // Sanitize text
                 const textNode = document.createTextNode(item.text);
                 const textDiv = document.createElement('div');
                 textDiv.className = 'item-text';
                 textDiv.appendChild(textNode);
                 
-                // MOD: Add ARIA labels to buttons
-                // Create a truncated version of text for ARIA labels
                 const truncatedText = item.text.length > 50 ? item.text.substring(0, 50) + '...' : item.text;
                 
                 itemEl.innerHTML = `
@@ -618,7 +843,6 @@
                     </div>
                 `;
                 
-                // MOD: Insert sanitized text into the new .post-body
                 itemEl.querySelector('.post-body').prepend(textDiv);
                 
                 pocketGridContainer.appendChild(itemEl);
@@ -637,7 +861,6 @@
         pocketGridContainer.addEventListener('click', (e) => {
             const deleteButton = e.target.closest('.item-delete-btn'); 
             if (deleteButton) {
-                // MOD: Find parent .pocket-post-item
                 const itemEl = deleteButton.closest('.pocket-post-item'); 
                 const dateAdded = itemEl.dataset.dateAdded;
                 
@@ -651,9 +874,8 @@
 
         // --- Real-time Sync Listener ---
         window.addEventListener('storage', (e) => {
-            // Also listen for sort key changes
             if (e.key === POCKET_STORAGE_KEY || e.key === POCKET_SORT_KEY) {
-                renderPocketGrid(); // Re-render if another tab changed the data
+                renderPocketGrid();
             }
         });
 
