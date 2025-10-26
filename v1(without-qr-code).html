@@ -26,8 +26,6 @@
     
     <!-- ADD: jsPDF library for PDF export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <!-- ADD: QR Code generator library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 
     <style>
         * {
@@ -1186,26 +1184,7 @@
                 doc.setTextColor(HEADER_TEXT_COLOR);
                 doc.text("My Pocket", PAGE_MARGIN, 28);
 
-                // --- ADD: QR Code Generation ---
-                try {
-                    const qrCodeUrl = "https://atikle.github.io/mypocket";
-                    const qr = qrcode(0, 'M'); // Type 0 (auto), Error correction 'M'
-                    qr.addData(qrCodeUrl);
-                    qr.make();
-                    // createDataURL(moduleSize, margin)
-                    const qrDataURL = qr.createDataURL(4, 4); 
-                    
-                    // Add QR code image to the header (top-right)
-                    // Position: x, y, width, height
-                    const qrSize = 30;
-                    const qrY = (45 - qrSize) / 2; // Center vertically in header (7.5)
-                    const qrX = PAGE_WIDTH - PAGE_MARGIN - qrSize; // Align to right margin
-                    
-                    doc.addImage(qrDataURL, 'PNG', qrX, qrY, qrSize, qrSize);
-                } catch (e) {
-                    console.error("Failed to generate or add QR code:", e);
-                }
-                // --- END: QR Code Generation ---
+                // --- REMOVED: Sort/Filter Info from header ---
 
                 // Reset cursor for content
                 cursor = 60; // Set base for content
@@ -1716,3 +1695,4 @@
     </script>
 </body>
 </html>
+
