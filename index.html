@@ -46,6 +46,13 @@
             --shadow-1: 0px 0px 8px 0px #282b33;
             --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.25);
             --hover-overlay: rgba(255, 255, 255, 0.08);
+            /* ADD: Dark mode border */
+            --border-color-1: #3a3b3c; 
+        }
+
+        html {
+            /* ADD: Light mode border */
+            --border-color-1: #e0e0e0; 
         }
         /* --- End Theme Variables --- */
 
@@ -68,7 +75,7 @@
             position: sticky;
             top: 0;
             z-index: 100;
-            border-bottom: 1px solid var(--background-2);
+            border-bottom: 1px solid var(--border-color-1);
         }
 
         .app-header h1 {
@@ -84,11 +91,6 @@
             display: flex;
             align-items: center;
             gap: 20px;
-        }
-
-        #greeting {
-            font-size: 16px;
-            color: var(--text-color-2);
         }
 
         #darkModeToggle {
@@ -113,6 +115,23 @@
         .fa-sun { color: #fdd835; }
         .fa-moon { color: #e0e0e0; }
 
+        /* ADD: New Month Header Style */
+        .month-header {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-color-1);
+            margin-top: 30px; /* Space above new group */
+            margin-bottom: 10px; /* Space below header */
+            padding-bottom: 8px;
+            /* MOD: Use border color var */
+            border-bottom: 1px solid var(--border-color-1); 
+        }
+        /* Don't add margin to the very first header */
+        .month-header:first-of-type {
+            margin-top: 0;
+        }
+
+
         /* --- Main Content Grid --- */
         .main-container {
             max-width: 900px; /* MOD: Narrower for a list view */
@@ -124,43 +143,47 @@
         #pocketGridContainer {
             display: flex;
             flex-direction: column;
-            gap: 12px; /* MOD: Gap between list items */
+            gap: 20px; /* MOD: Increased gap between posts */
         }
 
-        /* --- Pocket Card Styling --- */
-        /* MOD: Rename to .pocket-list-item and restyle */
-        .pocket-list-item {
+        /* --- MOD: Renamed to pocket-post-item and restyled --- */
+        .pocket-post-item {
             background: var(--card-background-1);
-            border-radius: 8px;
+            border-radius: 12px;
             box-shadow: var(--shadow-1);
-            padding: 15px 20px;
-            position: relative;
-            word-wrap: break-word; /* Handle long text */
+            border: 1px solid var(--border-color-1);
             transition: all var(--transition-speed-normal) var(--ease-out-quad);
             opacity: 1;
             transform: scale(1);
-            display: flex; /* MOD: Use flex for layout */
-            align-items: center;
-            gap: 15px;
-        }
-
-        /* ADD: Serial number style */
-        .item-serial-number {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text-color-2);
-            min-width: 25px; /* Ensure alignment */
-            text-align: right;
+            overflow: hidden; /* To contain border-radius */
         }
         
-        /* ADD: Wrapper for text and date */
-        .item-content {
-            flex-grow: 1; /* Take up remaining space */
-            /* ADD: Fix for overflow */
-            min-width: 0;
+        /* ADD: Post Header */
+        .post-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color-1);
+        }
+        .post-header-logo {
+            font-size: 20px;
+            color: var(--pocket-brand);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .post-header-date {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-color-2);
         }
 
-        /* MOD: Renamed from .pocket-card-text */
+        /* ADD: Post Body */
+        .post-body {
+            padding: 15px;
+        }
+
         .item-text {
             font-size: 16px;
             line-height: 1.5;
@@ -170,20 +193,27 @@
             white-space: pre-wrap; /* Respect newlines */
             font-weight: 500;
         }
-
-        /* ADD: Date style */
-        .item-date {
-            font-size: 12px;
-            color: var(--text-color-2);
-            margin-top: 4px;
-        }
         
-        /* MOD: Renamed from .card-delete-btn */
-        .item-delete-btn {
-            position: relative; /* MOD: No longer absolute */
+        /* ADD: Post Footer */
+        .post-footer {
+            padding: 8px 15px;
+            border-top: 1px solid var(--border-color-1);
+        }
+
+        /* MOD: No change to item-actions, just moved */
+        .item-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px; /* Space between buttons */
+            flex-shrink: 0; /* Don't shrink */
+        }
+
+        /* MOD: No change to item-action-btn, just moved */
+        .item-action-btn {
+            position: relative;
             top: auto;
             right: auto;
-            width: 36px; /* MOD: Slightly larger touch target */
+            width: 36px;
             height: 36px;
             border-radius: 50%;
             background: none;
@@ -194,31 +224,40 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            opacity: 0.6; /* MOD: Visible by default, but faded */
+            opacity: 0.6;
             transition: all var(--transition-speed-fast) var(--ease-out-quad);
-            flex-shrink: 0; /* Don't shrink */
+            flex-shrink: 0;
+            text-decoration: none; /* Added for the search link */
         }
         
-        .pocket-list-item:hover .item-delete-btn {
+        .pocket-post-item:hover .item-action-btn {
             opacity: 1; /* Show on hover */
+        }
+
+        .item-action-btn:hover {
             background-color: var(--hover-overlay);
         }
+        
+        /* ADD: Specific hover colors */
+        .item-search-btn:hover {
+            color: #4285F4; /* Google Blue */
+        }
+        
         .item-delete-btn:hover {
-            background-color: var(--hover-overlay);
             color: var(--pocket-delete-bg);
         }
         
         /* Animation for deleting card */
-        .pocket-list-item.pocket-item-fade-out {
+        .pocket-post-item.pocket-item-fade-out {
             opacity: 0;
             transform: scale(0.95); /* MOD: More subtle */
         }
+        /* --- END: Post Styles --- */
 
         .pocket-empty-message {
             font-size: 18px;
             color: var(--text-color-2);
             text-align: center;
-            grid-column: 1 / -1; /* Span full grid */
             margin-top: 50px;
         }
 
@@ -232,27 +271,19 @@
             }
             .header-controls {
                 width: 100%;
-                justify-content: space-between;
+                justify-content: flex-end; /* MOD: Was space-between */
             }
             .main-container {
                 margin: 20px auto;
             }
             #pocketGridContainer {
-                /* MOD: grid-template-columns: 1fr; Stack on mobile */
-                gap: 12px; /* MOD: Was 15px */
+                gap: 15px; /* MOD: Was 12px */
             }
-            /* MOD: Renamed from .card-delete-btn */
-            .item-delete-btn {
+            .item-action-btn {
                 opacity: 0.8; /* MOD: Was 1 */
-                background-color: transparent; /* MOD: Was hover_overlay */
             }
-            .item-delete-btn:hover {
+            .item-action-btn:hover {
                 background-color: var(--hover-overlay);
-            }
-
-            .item-serial-number {
-                min-width: 20px;
-                text-align: left;
             }
         }
     </style>
@@ -265,7 +296,6 @@
             My Pocket
         </h1>
         <div class="header-controls">
-            <span id="greeting"></span>
             <button id="darkModeToggle" title="Toggle Theme">
                 <i class="fa-solid fa-moon"></i>
             </button>
@@ -286,7 +316,6 @@
         // --- DOM Elements ---
         const themeToggleButton = document.getElementById('darkModeToggle');
         const themeIcon = themeToggleButton.querySelector('i');
-        const greetingEl = document.getElementById('greeting');
         const pocketGridContainer = document.getElementById('pocketGridContainer');
 
         // --- LocalStorage Functions ---
@@ -298,15 +327,14 @@
             }
 
             // --- ADD: Data Migration ---
-            // Check if data is in the old format (array of strings)
             if (items.length > 0 && typeof items[0] === 'string') {
                 items = items.map(itemText => {
                     return {
                         text: itemText,
-                        dateAdded: new Date().toISOString() // Assign current date as fallback
+                        dateAdded: new Date().toISOString()
                     };
                 });
-                savePocketItems(items); // Re-save in new format
+                savePocketItems(items);
             }
             // --- END: Data Migration ---
 
@@ -338,23 +366,12 @@
             applyTheme(theme);
         });
 
-        // --- Greeting Logic ---
-        function showGreeting() {
-            const hour = new Date().getHours();
-            let greetingText = "Welcome!";
-            if (hour < 12) {
-                greetingText = "Good morning!";
-            } else if (hour < 18) {
-                greetingText = "Good afternoon!";
-            } else {
-                greetingText = "Good evening!";
-            }
-            greetingEl.textContent = greetingText;
-        }
-
         // --- Render Logic ---
         function renderPocketGrid() {
             const items = getPocketItems();
+            
+            items.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
+
             pocketGridContainer.innerHTML = ''; // Clear grid
 
             if (items.length === 0) {
@@ -362,22 +379,49 @@
                 return;
             }
 
-            // ADD: Date formatting options
-            const dateOptions = {
+            // MOD: Date formatting options (kept the same)
+            const itemDateOptions = {
+                weekday: 'long', // ADDED
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric'
             };
 
-            items.forEach((item, index) => {
-                const itemEl = document.createElement('div');
-                itemEl.className = 'pocket-list-item'; // MOD: Renamed class
-                itemEl.dataset.index = index;
+            const monthYearFormatter = new Intl.DateTimeFormat(undefined, {
+                year: 'numeric',
+                month: 'long'
+            });
+            let currentMonthYear = ""; // Tracker for month groups
+
+            // MOD: Removed index from forEach, no longer needed
+            items.forEach((item) => {
                 
-                // MOD: Format the date
+                // --- Grouping Logic ---
+                let itemDateObj;
+                try {
+                    itemDateObj = new Date(item.dateAdded);
+                } catch(e) {
+                    itemDateObj = new Date(); // fallback
+                }
+                
+                const monthYear = monthYearFormatter.format(itemDateObj);
+                if (monthYear !== currentMonthYear) {
+                    currentMonthYear = monthYear;
+                    const monthHeader = document.createElement('h2');
+                    monthHeader.className = 'month-header';
+                    monthHeader.textContent = monthYear;
+                    pocketGridContainer.appendChild(monthHeader);
+                }
+                // --- End Grouping Logic ---
+
+                // MOD: Create new post element
+                const itemEl = document.createElement('div');
+                itemEl.className = 'pocket-post-item'; // MOD: New class
+                itemEl.dataset.dateAdded = item.dateAdded;
+                
                 let itemDate = "Date not available";
                 try {
-                     itemDate = new Date(item.dateAdded).toLocaleDateString(undefined, dateOptions);
+                     itemDate = itemDateObj.toLocaleDateString(undefined, itemDateOptions);
                 } catch(e) {
                     console.warn("Could not parse date:", item.dateAdded);
                 }
@@ -388,44 +432,61 @@
                 textDiv.className = 'item-text';
                 textDiv.appendChild(textNode);
 
-                // MOD: New HTML structure
+                // MOD: New HTML structure for the "post"
                 itemEl.innerHTML = `
-                    <span class="item-serial-number">${index + 1}.</span>
-                    <div class="item-content">
-                        <!-- Text will be appended here -->
-                        <div class="item-date">${itemDate}</div>
+                    <div class="post-header">
+                        <div class="post-header-logo">
+                            <i class="fa-solid fa-bookmark"></i>
+                        </div>
+                        <div class="post-header-date">
+                            ${itemDate}
+                        </div>
                     </div>
-                    <button class="item-delete-btn" title="Delete">
-                        <i class="fas fa-trash"></i>
-                    </button>
+                    <div class="post-body">
+                        <!-- Text will be appended here -->
+                    </div>
+                    <div class="post-footer">
+                        <div class="item-actions">
+                            <a href="https://www.google.com/search?q=${encodeURIComponent(item.text)}" 
+                               target="_blank" 
+                               class="item-action-btn item-search-btn" 
+                               title="Search on Google">
+                                <i class="fa-brands fa-google"></i>
+                            </a>
+                            <button class="item-action-btn item-delete-btn" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
                 `;
                 
-                // Insert the sanitized text node
-                itemEl.querySelector('.item-content').prepend(textDiv);
+                // MOD: Insert sanitized text into the new .post-body
+                itemEl.querySelector('.post-body').prepend(textDiv);
                 
                 pocketGridContainer.appendChild(itemEl);
             });
         }
 
         // --- Delete Logic ---
-        function deletePocketItem(index) {
+        function deletePocketItem(dateAdded) {
             let items = getPocketItems();
-            items.splice(index, 1);
-            savePocketItems(items);
+            const newItems = items.filter(item => item.dateAdded !== dateAdded);
+            savePocketItems(newItems);
             renderPocketGrid(); // Re-render
         }
 
         // Event Delegation for delete buttons
         pocketGridContainer.addEventListener('click', (e) => {
-            const deleteButton = e.target.closest('.item-delete-btn'); // MOD: Renamed class
+            const deleteButton = e.target.closest('.item-delete-btn'); 
             if (deleteButton) {
-                const itemEl = deleteButton.closest('.pocket-list-item'); // MOD: Renamed class
-                const index = parseInt(itemEl.dataset.index, 10);
+                // MOD: Find parent .pocket-post-item
+                const itemEl = deleteButton.closest('.pocket-post-item'); 
+                const dateAdded = itemEl.dataset.dateAdded;
                 
                 itemEl.classList.add('pocket-item-fade-out');
                 
                 setTimeout(() => {
-                    deletePocketItem(index);
+                    deletePocketItem(dateAdded);
                 }, 300); // Wait for animation
             }
         });
@@ -443,7 +504,6 @@
             let currentTheme = localStorage.getItem('theme') || 'light';
             applyTheme(currentTheme);
             
-            showGreeting();
             renderPocketGrid();
         }
 
