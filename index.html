@@ -64,6 +64,9 @@
             --hover-overlay: rgba(0, 0, 0, 0.05);
             --pocket-brand: #ef4056;
             --pocket-delete-bg: #e74c3c;
+            /* ADD: Edit/Save colors */
+            --pocket-edit: #3498db;
+            --pocket-save: #2ecc71;
         }
 
         html.dark {
@@ -433,6 +436,42 @@
             font-weight: 500;
         }
         
+        /* ADD: Styles for in-place edit textarea */
+        .edit-textarea {
+            display: none; /* Hidden by default */
+            width: 100%;
+            font-family: 'Inter', sans-serif;
+            font-size: 16px;
+            line-height: 1.5;
+            font-weight: 500;
+            color: var(--text-color-1);
+            background-color: var(--background-2);
+            border: 1px solid var(--border-color-1);
+            border-radius: 8px;
+            padding: 10px;
+            resize: vertical;
+            min-height: 80px;
+            max-height: 300px;
+            overflow-y: auto; /* Show scrollbar if max-height is reached */
+        }
+        .edit-textarea:focus {
+            outline: none;
+            border-color: var(--pocket-edit);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.3);
+        }
+
+        /* ADD: Styles for .is-editing state */
+        .pocket-post-item.is-editing .item-text {
+            display: none; /* Hide text */
+        }
+        .pocket-post-item.is-editing .edit-textarea {
+            display: block; /* Show textarea */
+        }
+        .pocket-post-item.is-editing .item-search-btn,
+        .pocket-post-item.is-editing .item-delete-btn {
+            display: none; /* Hide other buttons */
+        }
+
         /* ADD: Post Footer */
         .post-footer {
             padding: 8px 15px;
@@ -482,8 +521,32 @@
             color: #4285F4; /* Google Blue */
         }
         
+        /* ADD: Edit button hover */
+        .item-edit-btn:hover {
+            color: var(--pocket-edit);
+        }
+        
+        /* ADD: Save button hover (when in edit mode) */
+        .pocket-post-item.is-editing .item-edit-btn {
+            color: var(--pocket-save); /* Make save icon green */
+        }
+        .pocket-post-item.is-editing .item-edit-btn:hover {
+            color: var(--pocket-save); /* Keep it green on hover */
+        }
+
         .item-delete-btn:hover {
             color: var(--pocket-delete-bg);
+        }
+        
+        /* ADD: Show/hide pencil/save icons */
+        .item-edit-btn .fa-save {
+            display: none;
+        }
+        .pocket-post-item.is-editing .item-edit-btn .fa-save {
+            display: inline-block;
+        }
+        .pocket-post-item.is-editing .item-edit-btn .fa-pencil {
+            display: none;
         }
         
         /* Animation for deleting card */
@@ -743,9 +806,12 @@
             // Get the scroll height
             const scHeight = el.scrollHeight;
 
-            if (scHeight > MAX_TEXTAREA_HEIGHT_PX) {
+            // Use a slightly different max height for in-card textareas
+            const maxHeight = el.classList.contains('edit-textarea') ? 300 : MAX_TEXTAREA_HEIGHT_PX;
+
+            if (scHeight > maxHeight) {
                 // If content is taller than max-height, set fixed max-height and show scrollbar
-                el.style.height = `${MAX_TEXTAREA_HEIGHT_PX}px`;
+                el.style.height = `${maxHeight}px`;
                 el.style.overflowY = 'auto';
             } else {
                 // Otherwise, expand height to content and hide scrollbar
@@ -804,7 +870,9 @@
             
             // ADD: Set sort to 'latest' so user sees their new item
             localStorage.setItem(POCKET_SORT_KEY, 'latest');
-
+            
+            // ADD: Cancel any ongoing edits before re-rendering
+            cancelAllEdits();
             renderPocketGrid();
         }
 
@@ -859,6 +927,8 @@
             // Save and re-render
             const sortValue = clickedButton.dataset.sort;
             localStorage.setItem(POCKET_SORT_KEY, sortValue);
+            // ADD: Cancel any ongoing edits before re-rendering
+            cancelAllEdits();
             renderPocketGrid();
         });
 
@@ -880,6 +950,8 @@
                 clearAllBtn.classList.add('confirm-active');
                 // MOD: Target the span
                 clearAllBtn.querySelector('.btn-text').textContent = 'Are you sure?';
+                // ADD: Cancel edits when clearing
+                cancelAllEdits();
             }
         });
         // Reset button if user clicks away
@@ -910,6 +982,9 @@
 
         // MOD: Listener is still valid as it uses ID
         downloadPdfBtn.addEventListener('click', () => {
+            // ADD: Cancel edits before downloading
+            cancelAllEdits();
+
             // ADD: Console log and try/catch for debugging
             console.log('Generating PDF...');
             try {
@@ -1165,6 +1240,13 @@
                                aria-label="Search for '${truncatedText}' on Google">
                                 <i class="fa-brands fa-google" aria-hidden="true"></i>
                             </a>
+                            <!-- ADD: Edit Button -->
+                            <button class="item-action-btn item-edit-btn" 
+                                    title="Edit"
+                                    aria-label="Edit item: '${truncatedText}'">
+                                <i class="fas fa-pencil" aria-hidden="true"></i>
+                                <i class="fas fa-save" aria-hidden="true"></i>
+                            </button>
                             <button class="item-action-btn item-delete-btn" 
                                     title="Delete"
                                     aria-label="Delete item: '${truncatedText}'">
@@ -1188,8 +1270,46 @@
             renderPocketGrid(); // Re-render
         }
 
+        // --- ADD: Update Logic ---
+        function updatePocketItem(dateAdded, newText) {
+            // If new text is empty, just delete the item
+            if (!newText || newText.trim() === '') {
+                deletePocketItem(dateAdded); 
+                return; 
+            }
+
+            let items = getPocketItems();
+            const itemIndex = items.findIndex(item => item.dateAdded === dateAdded);
+            
+            if (itemIndex > -1) {
+                items[itemIndex].text = newText.trim();
+                savePocketItems(items);
+                renderPocketGrid(); // Re-render to show update and clear edit state
+            } else {
+                console.error('Item to update not found');
+            }
+        }
+
+        // --- ADD: Cancel All Edits Logic ---
+        function cancelAllEdits() {
+            document.querySelectorAll('.pocket-post-item.is-editing').forEach(itemEl => {
+                itemEl.classList.remove('is-editing');
+                itemEl.querySelector('.edit-textarea')?.remove(); // Safely remove textarea
+                
+                const editButton = itemEl.querySelector('.item-edit-btn');
+                if (editButton) {
+                    const truncatedText = itemEl.querySelector('.item-text')?.textContent.substring(0, 50) + '...' || 'item';
+                    editButton.title = 'Edit';
+                    editButton.setAttribute('aria-label', `Edit item: '${truncatedText}'`);
+                    // Icons are handled by CSS (fa-pencil becomes visible)
+                }
+            });
+        }
+
+
         // Event Delegation for delete buttons
         pocketGridContainer.addEventListener('click', (e) => {
+            // --- Handle Delete Button ---
             const deleteButton = e.target.closest('.item-delete-btn'); 
             if (deleteButton) {
                 const itemEl = deleteButton.closest('.pocket-post-item'); 
@@ -1200,12 +1320,62 @@
                 setTimeout(() => {
                     deletePocketItem(dateAdded);
                 }, 300); // Wait for animation
+                return; // Stop further execution
+            }
+            
+            // --- Handle Edit/Save Button ---
+            const editButton = e.target.closest('.item-edit-btn');
+            if (editButton) {
+                const itemEl = editButton.closest('.pocket-post-item');
+                const dateAdded = itemEl.dataset.dateAdded;
+                const isEditing = itemEl.classList.contains('is-editing');
+                
+                if (isEditing) {
+                    // --- User is clicking "Save" ---
+                    const editTextArea = itemEl.querySelector('.edit-textarea');
+                    const newText = editTextArea.value;
+                    updatePocketItem(dateAdded, newText);
+                    // renderPocketGrid() inside updatePocketItem will handle UI reset
+                
+                } else {
+                    // --- User is clicking "Edit" ---
+                    
+                    // First, cancel any other edits
+                    cancelAllEdits();
+                    
+                    const textDiv = itemEl.querySelector('.item-text');
+                    const currentText = textDiv.textContent;
+                    
+                    // Create textarea
+                    const editTextArea = document.createElement('textarea');
+                    editTextArea.className = 'edit-textarea';
+                    editTextArea.value = currentText;
+                    
+                    // Add auto-resize listener
+                    editTextArea.addEventListener('input', () => autoResizeTextarea(editTextArea));
+                    
+                    // Add to DOM
+                    itemEl.querySelector('.post-body').appendChild(editTextArea);
+                    itemEl.classList.add('is-editing');
+                    
+                    // Set initial height
+                    autoResizeTextarea(editTextArea);
+                    editTextArea.focus(); // Focus the textarea
+                    
+                    // Update button state
+                    const truncatedText = currentText.length > 50 ? currentText.substring(0, 50) + '...' : currentText;
+                    editButton.title = 'Save';
+                    editButton.setAttribute('aria-label', `Save changes for: '${truncatedText}'`);
+                    // Icon change is handled by CSS
+                }
             }
         });
 
         // --- Real-time Sync Listener ---
         window.addEventListener('storage', (e) => {
             if (e.key === POCKET_STORAGE_KEY || e.key === POCKET_SORT_KEY) {
+                // ADD: Cancel local edits if storage changes
+                cancelAllEdits();
                 renderPocketGrid();
             }
         });
@@ -1235,4 +1405,3 @@
     </script>
 </body>
 </html>
-
