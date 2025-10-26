@@ -506,11 +506,20 @@
 
         /* --- ADD: Footer Styles --- */
         .app-footer {
-            text-align: center;
-            padding: 20px;
+            /* MOD: Changed from center to left */
+            text-align: left;
+            /* MOD: Increased padding and added horizontal padding */
+            padding: 20px 30px;
             color: var(--text-color-2);
             font-size: 14px;
             flex-shrink: 0; /* Prevent footer from shrinking */
+            /* ADD: Added min-height, flex properties, and styling to match header */
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            border-top: 1px solid var(--border-color-1);
+            background-color: var(--card-background-1);
+            margin-top: 30px; /* Add space above footer */
         }
 
         .atikle {
@@ -520,7 +529,8 @@
         .atikle-multicolor {
             font-family: "Roboto", sans-serif;
             font-weight: 600;
-            font-size: 16px;
+            /* MOD: Increased font size */
+            font-size: 20px;
             background: linear-gradient(90.1deg, rgb(255, 85, 85) 0.1%, rgb(85, 85, 255) 100%);
             -webkit-background-clip: text;
             background-clip: text;
@@ -744,6 +754,11 @@
                 };
 
                 // MOD: Add month formatter
+                // FIX: Define monthYearFormatter here. It was missing.
+                const monthYearFormatter = new Intl.DateTimeFormat(undefined, {
+                    year: 'numeric',
+                    month: 'long'
+                });
             
             // --- PDF Styling ---
             const pageMargin = 15;
@@ -855,11 +870,8 @@
             }
 
             // --- 4. Save PDF ---
-            // MOD: Use dynamic filename with date
-            const today = new Date();
-            const dateString = today.toISOString().split('T')[0]; // YYYY-MM-DD
-            const fileName = `mypocket(${dateString}).pdf`;
-            doc.save(fileName);
+            // MOD: Revert filename to original
+            doc.save('my-pocket-items.pdf');
             console.log('PDF generation complete.');
 
             } catch (e) {
@@ -1041,6 +1053,5 @@
     </script>
 </body>
 </html>
-
 
 
