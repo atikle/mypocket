@@ -251,7 +251,7 @@
             font-size: 20px;
             font-weight: 600;
             color: var(--text-color-1);
-            margin-top: 30px; /* Space above new group */
+            margin-top: 30px;
             margin-bottom: 10px; /* Space below header */
             padding-bottom: 8px;
             /* MOD: Use border color var */
@@ -271,12 +271,91 @@
             flex-grow: 1; /* MOD: Allow main to grow and push footer down */
         }
         
+        /* --- ADD: Search Bar Styles --- */
+        .search-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        #searchInput {
+            font-family: 'Inter', sans-serif;
+            width: 100%;
+            padding: 12px 20px 12px 45px; /* Padding for icon */
+            border-radius: 12px;
+            border: 1px solid var(--border-color-1);
+            /* border: 1px transparent; */
+            /* background-color: var(--card-background-1); */
+            background-color: transparent;
+            color: var(--text-color-1);
+            font-size: 15px;
+            line-height: 1.5;
+            transition: all var(--transition-speed-fast) ease-out;
+            /* box-shadow: var(--shadow-1); */
+        }
+        #searchInput:focus {
+            outline: none;
+            border-color: var(--pocket-edit);
+            /* background-color: var(--card-background-1); */
+            /* box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.3); */
+        }
+        #searchInput::placeholder {
+            color: var(--text-color-2);
+            opacity: 0.8;
+        }
+        /* Hide webkit clear (X) button */
+        #searchInput::-webkit-search-decoration,
+        #searchInput::-webkit-search-cancel-button,
+        #searchInput::-webkit-search-results-button,
+        #searchInput::-webkit-search-results-decoration {
+            -webkit-appearance:none;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 16px;
+            color: var(--text-color-2);
+            opacity: 0.7;
+            pointer-events: none; /* Let clicks pass through */
+        }
+        #searchInput:focus + .search-icon {
+            color: var(--pocket-edit);
+            opacity: 1;
+        }
+
+        .clear-search-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: none;
+            border: none;
+            color: var(--text-color-2);
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.6;
+            transition: all var(--transition-speed-fast) var(--ease-out-quad);
+        }
+        .clear-search-btn:hover {
+            opacity: 1;
+            background-color: var(--hover-overlay);
+        }
+        /* --- END: Search Bar Styles --- */
+        
         /* MOD: Renamed to .sort-controls-container */
         .sort-controls-container {
             display: flex;
             flex-wrap: wrap;
             gap: 15px; /* MOD: Gap between left/right groups */
-            margin-bottom: 20px;
+            /* margin-bottom: 20px; */
+            margin-bottom: 40px;
             justify-content: space-between;
             align-items: center;
         }
@@ -612,11 +691,25 @@
                 right: 8px; /* MOD: Mobile position */
                 bottom: 8px; /* MOD: Mobile position */
             }
+
+            /* ADD: Search bar mobile */
+            #searchInput {
+                font-size: 14px;
+                padding: 10px 16px 10px 40px;
+            }
+            .search-icon {
+                left: 12px;
+                font-size: 14px;
+            }
+            .clear-search-btn {
+                right: 6px;
+                width: 30px;
+                height: 30px;
+            }
             
             /* MOD: Mobile sort controls */
             .sort-controls-container {
                 gap: 15px;
-                margin-bottom: 15px;
             }
             .sort-options-group {
                 gap: 6px;
@@ -743,6 +836,16 @@
             </button>
         </form>
 
+        <!-- ADD: Search Bar -->
+        <div class="search-container" role="search">
+            <i class="fa-solid fa-search search-icon" aria-hidden="true"></i>
+            <label for="searchInput" class="visually-hidden">Search items</label>
+            <input type="search" id="searchInput" placeholder="Search saved items..." aria-label="Search saved items">
+            <button class="clear-search-btn" id="clearSearchBtn" title="Clear search" aria-label="Clear search" style="display: none;">
+                <i class="fa-solid fa-times" aria-hidden="true"></i>
+            </button>
+        </div>
+
         <!-- MOD: New Sort Controls Structure -->
         <div class="sort-controls-container" role="toolbar" aria-label="Page controls">
             <div class="sort-options-group" role="group" aria-label="Sort items">
@@ -778,6 +881,8 @@
         const POCKET_STORAGE_KEY = "pocketItemsList";
         // ADD: Storage key for sort preference
         const POCKET_SORT_KEY = "pocketSortPreference";
+        // ADD: Storage key for search
+        const POCKET_SEARCH_KEY = "pocketSearchTerm";
 
         // --- DOM Elements ---
         const themeToggleButton = document.getElementById('darkModeToggle');
@@ -793,6 +898,9 @@
         // ADD: New elements for adding items
         const addItemForm = document.getElementById('addItemForm');
         const addItemInput = document.getElementById('addItemInput');
+        // ADD: Search elements
+        const searchInput = document.getElementById('searchInput');
+        const clearSearchBtn = document.getElementById('clearSearchBtn');
         
         // ADD: For PDF generation
         const { jsPDF } = window.jspdf;
@@ -831,7 +939,13 @@
             const itemsJson = localStorage.getItem(POCKET_STORAGE_KEY);
             let items = [];
             if (itemsJson) {
-                items = JSON.parse(itemsJson);
+                try {
+                    items = JSON.parse(itemsJson);
+                } catch(e) {
+                    console.error("Error parsing pocket items:", e);
+                    localStorage.removeItem(POCKET_STORAGE_KEY); // Clear corrupted data
+                    items = [];
+                }
             }
 
             // --- ADD: Data Migration ---
@@ -870,6 +984,11 @@
             
             // ADD: Set sort to 'latest' so user sees their new item
             localStorage.setItem(POCKET_SORT_KEY, 'latest');
+            
+            // ADD: Clear search so new item is visible
+            localStorage.setItem(POCKET_SEARCH_KEY, '');
+            searchInput.value = '';
+            toggleClearSearchBtn();
             
             // ADD: Cancel any ongoing edits before re-rendering
             cancelAllEdits();
@@ -974,7 +1093,7 @@
                 items.sort((a, b) => a.text.localeCompare(b.text, undefined, { sensitivity: 'base' }));
             } else if (sortPreference === 'za') {
                 items.sort((a, b) => b.text.localeCompare(a.text, undefined, { sensitivity: 'base' }));
-            } else {
+            } else { // 'latest' or default
                 items.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
             }
             return items;
@@ -989,8 +1108,14 @@
             console.log('Generating PDF...');
             try {
                 const doc = new jsPDF();
-                const items = getSortedItems();
+                
+                // MOD: Get sorted AND filtered items
+                const allItems = getSortedItems();
                 const sortPreference = localStorage.getItem(POCKET_SORT_KEY) || 'latest';
+                const searchTerm = (localStorage.getItem(POCKET_SEARCH_KEY) || '').toLowerCase();
+                const items = searchTerm ? allItems.filter(item => 
+                    item.text.toLowerCase().includes(searchTerm)
+                ) : allItems;
                 
                 // FIX: Define itemDateOptions here. It was floating free before.
                 const itemDateOptions = {
@@ -1040,7 +1165,19 @@
                 doc.setFontSize(headerFontSize);
                 doc.setFont(undefined, 'normal');
                 doc.text(`Sorted by: ${sortPreference.charAt(0).toUpperCase() + sortPreference.slice(1)}`, pageMargin, cursor);
-                cursor += headerFontSize + 10; // Extra space after header
+                cursor += headerFontSize * 0.5; // Smaller gap
+
+                // ADD: Show search term if active
+                if (searchTerm) {
+                    doc.setFontSize(headerFontSize - 1);
+                    doc.setFont(undefined, 'italic');
+                    // Ensure search term fits
+                    const splitTerm = doc.splitTextToSize(`Filtered by: "${searchTerm}"`, pageWidth);
+                    doc.text(splitTerm, pageMargin, cursor);
+                    cursor += (splitTerm.length * (headerFontSize - 1) * 0.35) + 10;
+                } else {
+                    cursor += headerFontSize + 10; // Extra space after header
+                }
             }
 
             // --- Helper to check for page break ---
@@ -1070,7 +1207,12 @@
 
             // --- 2. Loop and add items ---
             if (items.length === 0) {
-                 addWrappedText("Your pocket is empty.", textFontSize, pageMargin);
+                 // MOD: Show different message if searching
+                 if (searchTerm) {
+                    addWrappedText(`No items match your search for "${searchTerm}".`, textFontSize, pageMargin);
+                 } else {
+                    addWrappedText("Your pocket is empty.", textFontSize, pageMargin);
+                 }
             } else {
                 const showMonthHeaders = (sortPreference === 'latest' || sortPreference === 'oldest');
                 let currentMonthYear = ""; 
@@ -1129,11 +1271,20 @@
 
         // --- Render Logic ---
         function renderPocketGrid() {
-            const items = getSortedItems(); // Use helper to get sorted items
+            // MOD: Get all sorted items first
+            const allItems = getSortedItems();
+            const isPocketEmpty = allItems.length === 0;
+
+            // MOD: Filter items based on search
+            const searchTerm = (localStorage.getItem(POCKET_SEARCH_KEY) || '').toLowerCase();
+            const items = searchTerm ? allItems.filter(item => 
+                item.text.toLowerCase().includes(searchTerm)
+            ) : allItems;
+
 
             pocketGridContainer.innerHTML = ''; // Clear grid
 
-            if (items.length === 0) {
+            if (isPocketEmpty) {
                 pocketGridContainer.innerHTML = '<p class="pocket-empty-message">Your pocket is empty.</p>';
                 // FIX 1: Disable buttons instead of hiding
                 clearAllBtn.style.display = 'none'; // MOD: Hide clear all button
@@ -1146,9 +1297,25 @@
             // FIX 1: Enable buttons if items exist
             clearAllBtn.style.display = ''; // MOD: Show clear all button
             clearAllBtn.setAttribute('aria-disabled', 'false');
-            downloadPdfBtn.disabled = false;
-            downloadPdfBtn.setAttribute('aria-disabled', 'false');
+            // MOD: Disable download if no search results
+            downloadPdfBtn.disabled = items.length === 0;
+            downloadPdfBtn.setAttribute('aria-disabled', items.length === 0);
             resetClearAllBtn(); // Reset confirm state
+            
+            // ADD: Show message if no search results found
+            if (items.length === 0 && searchTerm) {
+                // Use innerHTML to allow for quotes
+                const messageP = document.createElement('p');
+                messageP.className = 'pocket-empty-message';
+                messageP.textContent = `No items match your search for "`;
+                const searchTermSpan = document.createElement('span');
+                searchTermSpan.style.fontWeight = '600';
+                searchTermSpan.textContent = searchTerm;
+                messageP.appendChild(searchTermSpan);
+                messageP.appendChild(document.createTextNode(`".`));
+                pocketGridContainer.appendChild(messageP);
+            }
+
 
             // MOD: Update active sort button
             const sortButtons = document.querySelectorAll('.sort-options-group .sort-btn');
@@ -1370,11 +1537,44 @@
                 }
             }
         });
+        
+        // --- ADD: Search Logic ---
+        function toggleClearSearchBtn() {
+            if (searchInput.value.length > 0) {
+                clearSearchBtn.style.display = 'flex';
+            } else {
+                clearSearchBtn.style.display = 'none';
+            }
+        }
+        
+        searchInput.addEventListener('input', () => {
+            localStorage.setItem(POCKET_SEARCH_KEY, searchInput.value);
+            toggleClearSearchBtn();
+            cancelAllEdits(); // Cancel edits while searching
+            renderPocketGrid();
+        });
+        
+        clearSearchBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            localStorage.setItem(POCKET_SEARCH_KEY, '');
+            toggleClearSearchBtn();
+            cancelAllEdits();
+            renderPocketGrid();
+            searchInput.focus();
+        });
+        
 
         // --- Real-time Sync Listener ---
         window.addEventListener('storage', (e) => {
             if (e.key === POCKET_STORAGE_KEY || e.key === POCKET_SORT_KEY) {
                 // ADD: Cancel local edits if storage changes
+                cancelAllEdits();
+                renderPocketGrid();
+            }
+            // ADD: Sync search if changed in another tab
+            if (e.key === POCKET_SEARCH_KEY) {
+                searchInput.value = localStorage.getItem(POCKET_SEARCH_KEY) || '';
+                toggleClearSearchBtn();
                 cancelAllEdits();
                 renderPocketGrid();
             }
@@ -1385,6 +1585,10 @@
             // Set initial theme
             let currentTheme = localStorage.getItem('theme') || 'light';
             applyTheme(currentTheme);
+            
+            // ADD: Load initial search term
+            searchInput.value = localStorage.getItem(POCKET_SEARCH_KEY) || '';
+            toggleClearSearchBtn();
             
             renderPocketGrid();
         }
@@ -1405,3 +1609,4 @@
     </script>
 </body>
 </html>
+
