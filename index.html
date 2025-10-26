@@ -1135,6 +1135,7 @@
                 const doc = new jsPDF();
                 
                 // MOD: Get sorted AND filtered items
+                // --- MOD: Moved declarations up ---
                 const allItems = getSortedItems();
                 const sortPreference = localStorage.getItem(POCKET_SORT_KEY) || 'latest';
                 const searchTerm = (localStorage.getItem(POCKET_SEARCH_KEY) || '').toLowerCase();
@@ -1183,20 +1184,41 @@
                 doc.setTextColor(HEADER_TEXT_COLOR);
                 doc.text("My Pocket", PAGE_MARGIN, 28);
 
-                // Add Sort/Filter Info
-                doc.setFontSize(10);
-                doc.setFont(undefined, 'normal');
-                
-                let sortInfo = `Sorted by: ${sortPreference.charAt(0).toUpperCase() + sortPreference.slice(1)}`;
-                doc.text(sortInfo, PAGE_WIDTH - PAGE_MARGIN, 22, { align: 'right' });
-                
-                if (searchTerm) {
-                    const filterInfo = doc.splitTextToSize(`Filtered by: "${searchTerm}"`, CONTENT_WIDTH / 2); // Max half width
-                    doc.text(filterInfo, PAGE_WIDTH - PAGE_MARGIN, 28, { align: 'right' });
-                }
+                // --- REMOVED: Sort/Filter Info from header ---
 
                 // Reset cursor for content
-                cursor = 60; 
+                cursor = 60; // Set base for content
+            }
+            
+            // --- NEW: PDF Info Function (to be called after header) ---
+            function addPageInfo() {
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'normal');
+                doc.setTextColor(SUBTLE_TEXT_COLOR);
+
+                // MOD: Format date with month name
+                const genDateOptions = {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                };
+                const generatedDate = `Generated: ${new Date().toLocaleString(undefined, genDateOptions)}`;
+                let sortInfoText = `Sorted: ${sortPreference.charAt(0).toUpperCase() + sortPreference.slice(1)}`;
+                
+                doc.text(generatedDate, PAGE_MARGIN, cursor);
+                doc.text(sortInfoText, PAGE_WIDTH - PAGE_MARGIN, cursor, { align: 'right' });
+                
+                cursor += 6; // Space after first line
+
+                if (searchTerm) {
+                    const filterInfo = `Filtered by: "${searchTerm}"`;
+                    doc.text(filterInfo, PAGE_MARGIN, cursor);
+                    cursor += 6; // Space after filter line
+                }
+                
+                cursor += 10; // Padding before items start
             }
 
             // --- PDF Footer Function ---
@@ -1204,6 +1226,16 @@
                 doc.setFontSize(9);
                 doc.setFont(undefined, 'normal');
                 doc.setTextColor(SUBTLE_TEXT_COLOR);
+                
+                // ADD: Website link
+                const websiteLink = "atikle.github.io/mypocket";
+                doc.text(websiteLink, PAGE_MARGIN, PAGE_HEIGHT - 10);
+                
+                // ADD: Add clickable link area
+                // Coordinates are (x, y, w, h) - y is baseline, so we go up a bit
+                doc.link(PAGE_MARGIN, PAGE_HEIGHT - 13, doc.getTextWidth(websiteLink), 10, { url: 'https://' + websiteLink });
+
+                // MOD: Page number
                 const footerText = `Page ${currentPage}`;
                 doc.text(footerText, PAGE_WIDTH / 2, PAGE_HEIGHT - 10, { align: 'center' });
             }
@@ -1216,6 +1248,7 @@
                     doc.addPage();
                     currentPage++;
                     addPageHeader();
+                    addPageInfo(); // <-- MODIFIED: Add info to new page
                     return true;
                 }
                 return false;
@@ -1224,7 +1257,10 @@
             // --- 1. Add Initial Header ---
             addPageHeader();
 
-            // --- 2. Loop and add items ---
+            // --- 2. Add Info Below Header ---
+            addPageInfo(); // <-- MODIFIED: Call new info function
+
+            // --- 3. Loop and add items ---
             if (items.length === 0) {
                  doc.setFontSize(12);
                  doc.setTextColor(SUBTLE_TEXT_COLOR);
