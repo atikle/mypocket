@@ -115,46 +115,76 @@
 
         /* --- Main Content Grid --- */
         .main-container {
-            max-width: 1200px;
+            max-width: 900px; /* MOD: Narrower for a list view */
             margin: 30px auto;
             padding: 0 20px;
         }
 
+        /* MOD: Changed from grid to flex column */
         #pocketGridContainer {
-            display: grid;
-            /* Responsive grid: min 250px, max 1fr */
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px; /* MOD: Gap between list items */
         }
 
         /* --- Pocket Card Styling --- */
-        .pocket-card {
+        /* MOD: Rename to .pocket-list-item and restyle */
+        .pocket-list-item {
             background: var(--card-background-1);
             border-radius: 8px;
             box-shadow: var(--shadow-1);
-            padding: 20px;
+            padding: 15px 20px;
             position: relative;
             word-wrap: break-word; /* Handle long text */
             transition: all var(--transition-speed-normal) var(--ease-out-quad);
             opacity: 1;
             transform: scale(1);
+            display: flex; /* MOD: Use flex for layout */
+            align-items: center;
+            gap: 15px;
         }
 
-        .pocket-card-text {
+        /* ADD: Serial number style */
+        .item-serial-number {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-color-2);
+            min-width: 25px; /* Ensure alignment */
+            text-align: right;
+        }
+        
+        /* ADD: Wrapper for text and date */
+        .item-content {
+            flex-grow: 1; /* Take up remaining space */
+            /* ADD: Fix for overflow */
+            min-width: 0;
+        }
+
+        /* MOD: Renamed from .pocket-card-text */
+        .item-text {
             font-size: 16px;
-            line-height: 1.6;
+            line-height: 1.5;
             color: var(--text-color-1);
             /* Handle long URLs */
             overflow-wrap: break-word;
             white-space: pre-wrap; /* Respect newlines */
+            font-weight: 500;
+        }
+
+        /* ADD: Date style */
+        .item-date {
+            font-size: 12px;
+            color: var(--text-color-2);
+            margin-top: 4px;
         }
         
-        .card-delete-btn {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 30px;
-            height: 30px;
+        /* MOD: Renamed from .card-delete-btn */
+        .item-delete-btn {
+            position: relative; /* MOD: No longer absolute */
+            top: auto;
+            right: auto;
+            width: 36px; /* MOD: Slightly larger touch target */
+            height: 36px;
             border-radius: 50%;
             background: none;
             border: none;
@@ -164,21 +194,24 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            opacity: 0; /* Hidden by default */
+            opacity: 0.6; /* MOD: Visible by default, but faded */
             transition: all var(--transition-speed-fast) var(--ease-out-quad);
+            flex-shrink: 0; /* Don't shrink */
         }
-        .pocket-card:hover .card-delete-btn {
+        
+        .pocket-list-item:hover .item-delete-btn {
             opacity: 1; /* Show on hover */
+            background-color: var(--hover-overlay);
         }
-        .card-delete-btn:hover {
+        .item-delete-btn:hover {
             background-color: var(--hover-overlay);
             color: var(--pocket-delete-bg);
         }
         
         /* Animation for deleting card */
-        .pocket-card.pocket-item-fade-out {
+        .pocket-list-item.pocket-item-fade-out {
             opacity: 0;
-            transform: scale(0.9);
+            transform: scale(0.95); /* MOD: More subtle */
         }
 
         .pocket-empty-message {
@@ -205,12 +238,21 @@
                 margin: 20px auto;
             }
             #pocketGridContainer {
-                grid-template-columns: 1fr; /* Stack on mobile */
-                gap: 15px;
+                /* MOD: grid-template-columns: 1fr; Stack on mobile */
+                gap: 12px; /* MOD: Was 15px */
             }
-            .card-delete-btn {
-                opacity: 1; /* Always show on mobile */
+            /* MOD: Renamed from .card-delete-btn */
+            .item-delete-btn {
+                opacity: 0.8; /* MOD: Was 1 */
+                background-color: transparent; /* MOD: Was hover_overlay */
+            }
+            .item-delete-btn:hover {
                 background-color: var(--hover-overlay);
+            }
+
+            .item-serial-number {
+                min-width: 20px;
+                text-align: left;
             }
         }
     </style>
@@ -250,7 +292,25 @@
         // --- LocalStorage Functions ---
         function getPocketItems() {
             const itemsJson = localStorage.getItem(POCKET_STORAGE_KEY);
-            return itemsJson ? JSON.parse(itemsJson) : [];
+            let items = [];
+            if (itemsJson) {
+                items = JSON.parse(itemsJson);
+            }
+
+            // --- ADD: Data Migration ---
+            // Check if data is in the old format (array of strings)
+            if (items.length > 0 && typeof items[0] === 'string') {
+                items = items.map(itemText => {
+                    return {
+                        text: itemText,
+                        dateAdded: new Date().toISOString() // Assign current date as fallback
+                    };
+                });
+                savePocketItems(items); // Re-save in new format
+            }
+            // --- END: Data Migration ---
+
+            return items;
         }
 
         function savePocketItems(items) {
@@ -302,24 +362,48 @@
                 return;
             }
 
+            // ADD: Date formatting options
+            const dateOptions = {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            };
+
             items.forEach((item, index) => {
-                const card = document.createElement('div');
-                card.className = 'pocket-card';
-                card.dataset.index = index;
+                const itemEl = document.createElement('div');
+                itemEl.className = 'pocket-list-item'; // MOD: Renamed class
+                itemEl.dataset.index = index;
                 
-                // Sanitize text to prevent HTML injection
-                const textNode = document.createTextNode(item);
+                // MOD: Format the date
+                let itemDate = "Date not available";
+                try {
+                     itemDate = new Date(item.dateAdded).toLocaleDateString(undefined, dateOptions);
+                } catch(e) {
+                    console.warn("Could not parse date:", item.dateAdded);
+                }
+
+                // Sanitize text
+                const textNode = document.createTextNode(item.text);
                 const textDiv = document.createElement('div');
-                textDiv.className = 'pocket-card-text';
+                textDiv.className = 'item-text';
                 textDiv.appendChild(textNode);
 
-                card.innerHTML = `
-                    <button class="card-delete-btn" title="Delete">
+                // MOD: New HTML structure
+                itemEl.innerHTML = `
+                    <span class="item-serial-number">${index + 1}.</span>
+                    <div class="item-content">
+                        <!-- Text will be appended here -->
+                        <div class="item-date">${itemDate}</div>
+                    </div>
+                    <button class="item-delete-btn" title="Delete">
                         <i class="fas fa-trash"></i>
                     </button>
                 `;
-                card.appendChild(textDiv); // Append sanitized text
-                pocketGridContainer.appendChild(card);
+                
+                // Insert the sanitized text node
+                itemEl.querySelector('.item-content').prepend(textDiv);
+                
+                pocketGridContainer.appendChild(itemEl);
             });
         }
 
@@ -333,12 +417,12 @@
 
         // Event Delegation for delete buttons
         pocketGridContainer.addEventListener('click', (e) => {
-            const deleteButton = e.target.closest('.card-delete-btn');
+            const deleteButton = e.target.closest('.item-delete-btn'); // MOD: Renamed class
             if (deleteButton) {
-                const card = deleteButton.closest('.pocket-card');
-                const index = parseInt(card.dataset.index, 10);
+                const itemEl = deleteButton.closest('.pocket-list-item'); // MOD: Renamed class
+                const index = parseInt(itemEl.dataset.index, 10);
                 
-                card.classList.add('pocket-item-fade-out');
+                itemEl.classList.add('pocket-item-fade-out');
                 
                 setTimeout(() => {
                     deletePocketItem(index);
@@ -369,3 +453,4 @@
     </script>
 </body>
 </html>
+
