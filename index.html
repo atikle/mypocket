@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Pocket</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* --- Theme Variables (Copied from index.html) --- */
+        :root {
+            --transition-speed-fast: 0.2s;
+            --transition-speed-normal: 0.3s;
+            --ease-out-quad: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            
+            --background-1: white;
+            --background-2: #f0f2f5; /* Light gray for main bg */
+            --card-background-1: white;
+            --text-color-1: #050505;
+            --text-color-2: #65676b;
+            --shadow-1: 0 2px 6px 0 rgba(136, 148, 171, 0.2), 0 24px 20px -24px rgba(71, 82, 107, 0.1);
+            --shadow-2: 0 2px 10px rgba(0, 0, 0, 0.1);
+            --hover-overlay: rgba(0, 0, 0, 0.05);
+            --pocket-brand: #ef4056;
+            --pocket-delete-bg: #e74c3c;
+        }
+
+        html.dark {
+            --background-1: #18191a; /* Dark gray for main bg */
+            --background-2: black;
+            --card-background-1: #242526;
+            --text-color-1: white;
+            --text-color-2: #b0b3b8;
+            --shadow-1: 0px 0px 8px 0px #282b33;
+            --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.25);
+            --hover-overlay: rgba(255, 255, 255, 0.08);
+        }
+        /* --- End Theme Variables --- */
+
+        body, html {
+            height: 100%;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-2);
+            color: var(--text-color-1);
+            transition: background-color var(--transition-speed-normal), color var(--transition-speed-normal);
+        }
+
+        /* --- App Header --- */
+        .app-header {
+            background-color: var(--card-background-1);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-2);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid var(--background-2);
+        }
+
+        .app-header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-color-1);
+        }
+        
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        #greeting {
+            font-size: 16px;
+            color: var(--text-color-2);
+        }
+
+        #darkModeToggle {
+            background-color: transparent;
+            color: var(--text-color-2);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color var(--transition-speed-normal) var(--ease-out-quad), color var(--transition-speed-normal) var(--ease-out-quad);
+            user-select: none;
+        }
+        #darkModeToggle:hover {
+            background-color: var(--hover-overlay);
+            color: var(--text-color-1);
+        }
+        .fa-sun { color: #fdd835; }
+        .fa-moon { color: #e0e0e0; }
+
+        /* --- Main Content Grid --- */
+        .main-container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        #pocketGridContainer {
+            display: grid;
+            /* Responsive grid: min 250px, max 1fr */
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        /* --- Pocket Card Styling --- */
+        .pocket-card {
+            background: var(--card-background-1);
+            border-radius: 8px;
+            box-shadow: var(--shadow-1);
+            padding: 20px;
+            position: relative;
+            word-wrap: break-word; /* Handle long text */
+            transition: all var(--transition-speed-normal) var(--ease-out-quad);
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .pocket-card-text {
+            font-size: 16px;
+            line-height: 1.6;
+            color: var(--text-color-1);
+            /* Handle long URLs */
+            overflow-wrap: break-word;
+            white-space: pre-wrap; /* Respect newlines */
+        }
+        
+        .card-delete-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: none;
+            border: none;
+            color: var(--text-color-2);
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0; /* Hidden by default */
+            transition: all var(--transition-speed-fast) var(--ease-out-quad);
+        }
+        .pocket-card:hover .card-delete-btn {
+            opacity: 1; /* Show on hover */
+        }
+        .card-delete-btn:hover {
+            background-color: var(--hover-overlay);
+            color: var(--pocket-delete-bg);
+        }
+        
+        /* Animation for deleting card */
+        .pocket-card.pocket-item-fade-out {
+            opacity: 0;
+            transform: scale(0.9);
+        }
+
+        .pocket-empty-message {
+            font-size: 18px;
+            color: var(--text-color-2);
+            text-align: center;
+            grid-column: 1 / -1; /* Span full grid */
+            margin-top: 50px;
+        }
+
+        /* --- Responsive --- */
+        @media (max-width: 640px) {
+            .app-header {
+                padding: 15px 20px;
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
+            .header-controls {
+                width: 100%;
+                justify-content: space-between;
+            }
+            .main-container {
+                margin: 20px auto;
+            }
+            #pocketGridContainer {
+                grid-template-columns: 1fr; /* Stack on mobile */
+                gap: 15px;
+            }
+            .card-delete-btn {
+                opacity: 1; /* Always show on mobile */
+                background-color: var(--hover-overlay);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="app-header">
+        <h1>
+            <i class="fa-solid fa-bookmark" style="color: var(--pocket-brand);"></i>
+            My Pocket
+        </h1>
+        <div class="header-controls">
+            <span id="greeting"></span>
+            <button id="darkModeToggle" title="Toggle Theme">
+                <i class="fa-solid fa-moon"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <div id="pocketGridContainer">
+            <!-- Saved items will be dynamically added here -->
+        </div>
+    </main>
+    
+
+    <script>
+        // --- Storage Key (MUST match index.html) ---
+        const POCKET_STORAGE_KEY = "pocketItemsList";
+
+        // --- DOM Elements ---
+        const themeToggleButton = document.getElementById('darkModeToggle');
+        const themeIcon = themeToggleButton.querySelector('i');
+        const greetingEl = document.getElementById('greeting');
+        const pocketGridContainer = document.getElementById('pocketGridContainer');
+
+        // --- LocalStorage Functions ---
+        function getPocketItems() {
+            const itemsJson = localStorage.getItem(POCKET_STORAGE_KEY);
+            return itemsJson ? JSON.parse(itemsJson) : [];
+        }
+
+        function savePocketItems(items) {
+            localStorage.setItem(POCKET_STORAGE_KEY, JSON.stringify(items));
+        }
+
+        // --- Theme Toggle Logic ---
+        function applyTheme(theme) {
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+                themeIcon.classList.remove('fa-sun');
+                themeIcon.classList.add('fa-moon');
+                themeToggleButton.setAttribute('title', 'Switch to Light Mode');
+            } else {
+                document.documentElement.classList.remove('dark');
+                themeIcon.classList.remove('fa-moon');
+                themeIcon.classList.add('fa-sun');
+                themeToggleButton.setAttribute('title', 'Switch to Dark Mode');
+            }
+            localStorage.setItem('theme', theme);
+        }
+
+        themeToggleButton.addEventListener('click', () => {
+            let theme = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+            applyTheme(theme);
+        });
+
+        // --- Greeting Logic ---
+        function showGreeting() {
+            const hour = new Date().getHours();
+            let greetingText = "Welcome!";
+            if (hour < 12) {
+                greetingText = "Good morning!";
+            } else if (hour < 18) {
+                greetingText = "Good afternoon!";
+            } else {
+                greetingText = "Good evening!";
+            }
+            greetingEl.textContent = greetingText;
+        }
+
+        // --- Render Logic ---
+        function renderPocketGrid() {
+            const items = getPocketItems();
+            pocketGridContainer.innerHTML = ''; // Clear grid
+
+            if (items.length === 0) {
+                pocketGridContainer.innerHTML = '<p class="pocket-empty-message">Your pocket is empty.</p>';
+                return;
+            }
+
+            items.forEach((item, index) => {
+                const card = document.createElement('div');
+                card.className = 'pocket-card';
+                card.dataset.index = index;
+                
+                // Sanitize text to prevent HTML injection
+                const textNode = document.createTextNode(item);
+                const textDiv = document.createElement('div');
+                textDiv.className = 'pocket-card-text';
+                textDiv.appendChild(textNode);
+
+                card.innerHTML = `
+                    <button class="card-delete-btn" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                `;
+                card.appendChild(textDiv); // Append sanitized text
+                pocketGridContainer.appendChild(card);
+            });
+        }
+
+        // --- Delete Logic ---
+        function deletePocketItem(index) {
+            let items = getPocketItems();
+            items.splice(index, 1);
+            savePocketItems(items);
+            renderPocketGrid(); // Re-render
+        }
+
+        // Event Delegation for delete buttons
+        pocketGridContainer.addEventListener('click', (e) => {
+            const deleteButton = e.target.closest('.card-delete-btn');
+            if (deleteButton) {
+                const card = deleteButton.closest('.pocket-card');
+                const index = parseInt(card.dataset.index, 10);
+                
+                card.classList.add('pocket-item-fade-out');
+                
+                setTimeout(() => {
+                    deletePocketItem(index);
+                }, 300); // Wait for animation
+            }
+        });
+
+        // --- Real-time Sync Listener ---
+        window.addEventListener('storage', (e) => {
+            if (e.key === POCKET_STORAGE_KEY) {
+                renderPocketGrid(); // Re-render if another tab changed the data
+            }
+        });
+
+        // --- Initial Load ---
+        function init() {
+            // Set initial theme
+            let currentTheme = localStorage.getItem('theme') || 'light';
+            applyTheme(currentTheme);
+            
+            showGreeting();
+            renderPocketGrid();
+        }
+
+        // Run on page load
+        document.addEventListener('DOMContentLoaded', init);
+
+    </script>
+</body>
+</html>
