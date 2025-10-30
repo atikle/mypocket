@@ -902,17 +902,22 @@
                         <i class="fa-solid fa-moon" id="menuThemeIcon" aria-hidden="true"></i>
                         <span id="menuThemeText">Dark Mode</span>
                     </div>
-                    <!-- This span can be replaced with a real switch component later -->
                     <span class="visually-hidden" id="menuThemeState">Off</span>
+                </div>
+                <div class="settings-menu-divider"></div>
+                <!-- ADD: PDF Download button in menu -->
+                <div class="settings-menu-item" id="menuDownloadPdfBtn" role="menuitem" tabindex="0">
+                    <i class="fa-solid fa-file-pdf" aria-hidden="true"></i>
+                    Download PDF
                 </div>
                 <div class="settings-menu-divider"></div>
                 <div class="settings-menu-item" id="jsonImportBtn" role="menuitem" tabindex="0">
                     <i class="fa-solid fa-upload" aria-hidden="true"></i>
-                    Import from JSON
+                    Import backup
                 </div>
                 <div class="settings-menu-item" id="jsonExportBtn" role="menuitem" tabindex="0">
                     <i class="fa-solid fa-download" aria-hidden="true"></i>
-                    Export to JSON
+                    Export backup
                 </div>
             </div>
         </div>
@@ -938,11 +943,10 @@
         </div>
 
         <div class="sort-controls-container" role="toolbar" aria-label="Page controls">
+            <!-- MOD: Removed A-Z and Z-A buttons -->
             <div class="sort-options-group" role="group" aria-label="Sort items">
                 <button class="sort-btn active" data-sort="latest" aria-pressed="true">Latest</button>
                 <button class="sort-btn" data-sort="oldest" aria-pressed="false">Oldest</button>
-                <button class="sort-btn" data-sort="az" aria-pressed="false">A-Z</button>
-                <button class="sort-btn" data-sort="za" aria-pressed="false">Z-A</button>
             </div>
             <div class="sort-actions-group" role="group" aria-label="Page actions">
                 <button class="sort-btn download-btn" id="downloadPdfBtn">
@@ -1001,6 +1005,7 @@
         const jsonImportBtn = document.getElementById('jsonImportBtn');
         const jsonExportBtn = document.getElementById('jsonExportBtn');
         const jsonImportInput = document.getElementById('jsonImportInput');
+        const menuDownloadPdfBtn = document.getElementById('menuDownloadPdfBtn'); // ADDED
 
         // ADD: Notification Element
         const notificationToast = document.getElementById('notificationToast');
@@ -1321,23 +1326,21 @@
         
         // --- ADD: Download PDF Logic ---
         
+        // MOD: Removed A-Z and Z-A sort logic
         function getSortedItems() {
             const items = getPocketItems();
             const sortPreference = localStorage.getItem(POCKET_SORT_KEY) || 'latest';
             
             if (sortPreference === 'oldest') {
                 items.sort((a, b) => new Date(a.dateAdded) - new Date(b.dateAdded));
-            } else if (sortPreference === 'az') {
-                items.sort((a, b) => a.text.localeCompare(b.text, undefined, { sensitivity: 'base' }));
-            } else if (sortPreference === 'za') {
-                items.sort((a, b) => b.text.localeCompare(a.text, undefined, { sensitivity: 'base' }));
             } else { // 'latest' or default
                 items.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
             }
             return items;
         }
 
-        downloadPdfBtn.addEventListener('click', () => {
+        // MOD: Refactored PDF generation into its own function
+        function generateAndDownloadPDF() {
             cancelAllEdits();
             console.log('Generating PDF...');
             try {
@@ -1541,6 +1544,22 @@
             } catch (e) {
                 console.error("Failed to generate PDF:", e);
                 showNotification('Failed to generate PDF.', true);
+            }
+        }
+
+        // Add listener to the quick action button
+        downloadPdfBtn.addEventListener('click', generateAndDownloadPDF);
+
+        // ADD: Add listeners to the new menu button
+        menuDownloadPdfBtn.addEventListener('click', () => {
+            generateAndDownloadPDF();
+            closeSettingsMenu(); // Close menu after action
+        });
+        menuDownloadPdfBtn.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                generateAndDownloadPDF();
+                closeSettingsMenu(); // Close menu after action
             }
         });
 
@@ -1860,3 +1879,4 @@
     </script>
 </body>
 </html>
+
