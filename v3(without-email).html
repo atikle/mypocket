@@ -712,146 +712,6 @@
         }
         /* --- END: Notification Toast --- */
 
-        /* --- ADD: Email Modal Styles --- */
-        .modal-overlay {
-            display: none; /* Hidden by default */
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 1001;
-            opacity: 0;
-            transition: opacity var(--transition-speed-fast) ease-out;
-        }
-        .modal-overlay.show {
-            display: block;
-            opacity: 1;
-        }
-
-        .modal-content {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: var(--card-background-1);
-            color: var(--text-color-1);
-            border-radius: 12px;
-            box-shadow: var(--shadow-2);
-            z-index: 1002;
-            width: 90%;
-            max-width: 450px;
-            padding: 24px 30px;
-            display: none; /* Hidden by default */
-            opacity: 0;
-            transform: translate(-50%, -60%); /* Start slightly higher */
-            transition: opacity var(--transition-speed-fast) ease-out, transform var(--transition-speed-fast) ease-out;
-        }
-        .modal-overlay.show .modal-content {
-            display: block;
-            opacity: 1;
-            transform: translate(-50%, -50%); /* Animate to center */
-        }
-
-        .modal-content h3 {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 10px;
-        }
-        .modal-content p {
-            font-size: 15px;
-            color: var(--text-color-2);
-            margin-bottom: 20px;
-            line-height: 1.5;
-        }
-
-        .modal-form-group {
-            margin-bottom: 20px;
-        }
-        .modal-form-group label {
-            display: block;
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 8px;
-            color: var(--text-color-1);
-        }
-        .modal-input {
-            width: 100%;
-            padding: 10px 14px;
-            font-family: 'Inter', sans-serif;
-            font-size: 15px;
-            border: 1px solid var(--border-color-1);
-            border-radius: 8px;
-            background-color: var(--background-2);
-            color: var(--text-color-1);
-            transition: all var(--transition-speed-fast) ease-out;
-        }
-        .modal-input:focus {
-            outline: none;
-            border-color: var(--pocket-brand);
-            box-shadow: 0 0 0 3px rgba(239, 64, 86, 0.3);
-        }
-
-        .modal-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-        }
-        .modal-btn {
-            font-family: 'Inter', sans-serif;
-            font-size: 15px;
-            font-weight: 600;
-            padding: 10px 16px;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            transition: all var(--transition-speed-fast) ease-out;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .modal-btn.cancel-btn {
-            background-color: var(--background-2);
-            color: var(--text-color-1);
-            border: 1px solid var(--border-color-1);
-        }
-        .modal-btn.cancel-btn:hover {
-            background-color: var(--hover-overlay);
-        }
-        .modal-btn.send-btn {
-            background-color: var(--pocket-brand);
-            color: white;
-            min-width: 80px; /* For spinner */
-        }
-        .modal-btn.send-btn:hover {
-            opacity: 0.85;
-        }
-
-        /* Loading spinner for modal button */
-        .modal-btn .btn-text {
-            display: inline;
-        }
-        .modal-btn .btn-spinner {
-            display: none;
-            width: 18px;
-            height: 18px;
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: modal-spinner 0.6s linear infinite;
-        }
-        .modal-btn.loading .btn-text {
-            display: none;
-        }
-        .modal-btn.loading .btn-spinner {
-            display: block;
-        }
-        @keyframes modal-spinner {
-            to { transform: rotate(360deg); }
-        }
-        /* --- END: Email Modal Styles --- */
-
 
         /* --- Responsive --- */
         @media (max-width: 640px) {
@@ -1050,11 +910,6 @@
                     <i class="fa-solid fa-file-pdf" aria-hidden="true"></i>
                     Download PDF
                 </div>
-                <!-- ADD: Email My Items button -->
-                <div class="settings-menu-item" id="menuEmailItemsBtn" role="menuitem" tabindex="0">
-                    <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
-                    Email My Items
-                </div>
                 <div class="settings-menu-divider"></div>
                 <div class="settings-menu-item" id="jsonImportBtn" role="menuitem" tabindex="0">
                     <i class="fa-solid fa-upload" aria-hidden="true"></i>
@@ -1122,34 +977,7 @@
     <!-- ADD: Notification Toast element -->
     <div class="notification-toast" id="notificationToast"></div>
 
-    <!-- ADD: Email Modal -->
-    <div class="modal-overlay" id="emailModalOverlay">
-        <div class="modal-content" id="emailModalContent" role="dialog" aria-labelledby="emailModalTitle" aria-modal="true">
-            <h3 id="emailModalTitle">Email Your Pocket Items</h3>
-            <p>Enter your email address to receive a copy of all your saved items.</p>
-            <form id="emailModalForm">
-                <div class="modal-form-group">
-                    <label for="emailModalInput">Email Address</label>
-                    <input type="email" id="emailModalInput" class="modal-input" placeholder="you@example.com" required>
-                </div>
-                <div class="modal-actions">
-                    <button type="button" class="modal-btn cancel-btn" id="emailModalCancelBtn">Cancel</button>
-                    <button type="submit" class="modal-btn send-btn" id="emailModalSendBtn">
-                        <span class="btn-text">Send</span>
-                        <span class="btn-spinner"></span>
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-    <!-- END: Email Modal -->
-
-
     <script>
-        // --- ADD: Google Apps Script URL ---
-        // IMPORTANT: Replace this with your own deployed Web App URL from the setup instructions.
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxQoDLPPRXACiEgCLHf8-z7dWVQ9hGKVk1TSq_7oYBzeT1rPk-9PmwsVdfU15IOWmxi3A/exec';
-
         // --- Storage Key (MUST match index.html) ---
         const POCKET_STORAGE_KEY = "pocketItemsList";
         const POCKET_SORT_KEY = "pocketSortPreference";
@@ -1178,14 +1006,6 @@
         const jsonExportBtn = document.getElementById('jsonExportBtn');
         const jsonImportInput = document.getElementById('jsonImportInput');
         const menuDownloadPdfBtn = document.getElementById('menuDownloadPdfBtn'); // ADDED
-        const menuEmailItemsBtn = document.getElementById('menuEmailItemsBtn'); // ADDED
-
-        // ADD: Email Modal Elements
-        const emailModalOverlay = document.getElementById('emailModalOverlay');
-        const emailModalForm = document.getElementById('emailModalForm');
-        const emailModalInput = document.getElementById('emailModalInput');
-        const emailModalCancelBtn = document.getElementById('emailModalCancelBtn');
-        const emailModalSendBtn = document.getElementById('emailModalSendBtn');
 
         // ADD: Notification Element
         const notificationToast = document.getElementById('notificationToast');
@@ -1456,80 +1276,6 @@
         
         // Handle file selection
         jsonImportInput.addEventListener('change', (e) => importFromJson(e.target.files[0]));
-
-        
-        // --- ADD: Email Modal Logic ---
-        function showEmailModal() {
-            const items = getPocketItems();
-            if (items.length === 0) {
-                showNotification("Your pocket is empty. Add some items first!", true);
-                return;
-            }
-            emailModalOverlay.classList.add('show');
-            emailModalInput.focus();
-            closeSettingsMenu();
-        }
-
-        function hideEmailModal() {
-            emailModalOverlay.classList.remove('show');
-            emailModalInput.value = '';
-            emailModalSendBtn.classList.remove('loading');
-        }
-
-        menuEmailItemsBtn.addEventListener('click', showEmailModal);
-        menuEmailItemsBtn.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') e.preventDefault(); showEmailModal();
-        });
-
-        emailModalCancelBtn.addEventListener('click', hideEmailModal);
-        emailModalOverlay.addEventListener('click', (e) => {
-            if (e.target === emailModalOverlay) {
-                hideEmailModal();
-            }
-        });
-
-        emailModalForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = emailModalInput.value;
-            if (!email || !email.includes('@')) {
-                showNotification("Please enter a valid email address.", true);
-                return;
-            }
-
-            if (APPS_SCRIPT_URL === 'PASTE_YOUR_DEPLOYED_WEB_APP_URL_HERE') {
-                showNotification("Setup incomplete. Please update APPS_SCRIPT_URL.", true);
-                hideEmailModal();
-                return;
-            }
-
-            emailModalSendBtn.classList.add('loading');
-
-            try {
-                const items = getPocketItems();
-                const payload = {
-                    email: email,
-                    items: items // Send the full array of item objects
-                };
-
-                const response = await fetch(APPS_SCRIPT_URL, {
-                    method: "POST",
-                    headers: { "Content-Type": "text/plain" },
-                    body: JSON.stringify(payload)
-                });
-                
-                // The Apps Script will respond with a JSON redirect, so we can't read the response.
-                // We'll assume success if the fetch itself doesn't throw an error.
-                // This is a common pattern for cross-origin POSTs to Apps Script.
-                showNotification(`Sending items to ${email}...`);
-                hideEmailModal();
-
-            } catch (error) {
-                console.error('Error sending items to Apps Script:', error);
-                showNotification('Error sending items. Please check console.', true);
-                emailModalSendBtn.classList.remove('loading');
-            }
-        });
-        // --- END: Email Modal Logic ---
 
 
         // --- Sort Button Logic ---
@@ -2133,3 +1879,4 @@
     </script>
 </body>
 </html>
+
