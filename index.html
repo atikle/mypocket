@@ -1072,7 +1072,7 @@
     
         <form class="add-item-form" id="addItemForm">
             <label for="addItemInput" class="visually-hidden">Add new item</label>
-            <textarea id="addItemInput" class="add-item-input" placeholder="Save a link or note..." rows="3"></textarea>
+            <textarea id="addItemInput" class="add-item-input" placeholder="Add item to My Pocket" rows="3"></textarea>
             <button type="submit" class="add-item-btn" title="Save Item" aria-label="Save Item">
                 <i class="fa-solid fa-plus" aria-hidden="true"></i>
             </button>
@@ -1081,7 +1081,7 @@
         <div class="search-container" role="search">
             <i class="fa-solid fa-search search-icon" aria-hidden="true"></i>
             <label for="searchInput" class="visually-hidden">Search items</label>
-            <input type="search" id="searchInput" placeholder="Search saved items..." aria-label="Search saved items">
+            <input type="search" id="searchInput" placeholder="Search saved items" aria-label="Search saved items">
             <button class="clear-search-btn" id="clearSearchBtn" title="Clear search" aria-label="Clear search" style="display: none;">
                 <i class="fa-solid fa-times" aria-hidden="true"></i>
             </button>
@@ -1832,7 +1832,7 @@
             pocketGridContainer.innerHTML = ''; 
 
             if (isPocketEmpty) {
-                pocketGridContainer.innerHTML = '<p class="pocket-empty-message">Your pocket is empty.</p>';
+                pocketGridContainer.innerHTML = '<p class="pocket-empty-message">You have not saved anything yet</p>';
                 clearAllBtn.style.display = 'none'; 
                 clearAllBtn.setAttribute('aria-disabled', 'true');
                 downloadPdfBtn.disabled = true;
