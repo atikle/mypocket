@@ -1148,7 +1148,7 @@
     <script>
         // --- ADD: Google Apps Script URL ---
         // IMPORTANT: Replace this with your own deployed Web App URL from the setup instructions.
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx6xTmqUZYn51xKdSm9BzPi0rjG19tp6KswbD6pOEAKBKipDiw6qeb0S7g0Z0kiQs-pyw/exec';
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxKF4e_YM5ifoU78uy529szl4R3T01_GAoJOQuJ9MVU9FsbJuVehZF1zbGvrdmY4beYpA/exec';
 
         // --- Storage Key (MUST match index.html) ---
         const POCKET_STORAGE_KEY = "pocketItemsList";
@@ -1512,12 +1512,8 @@
                 };
 
                 const response = await fetch(APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    mode: 'cors',
-                    cache: 'no-cache',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain" },
                     body: JSON.stringify(payload)
                 });
                 
