@@ -1148,7 +1148,7 @@
     <script>
         // --- ADD: Google Apps Script URL ---
         // IMPORTANT: Replace this with your own deployed Web App URL from the setup instructions.
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxQoDLPPRXACiEgCLHf8-z7dWVQ9hGKVk1TSq_7oYBzeT1rPk-9PmwsVdfU15IOWmxi3A/exec';
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyKVRgkVy0IOu-WdMKNFOwUA-uTd7TqvubWm0rlJPBDoTdby3-8KkBsWsDFiWPan7PHaA/exec';
 
         // --- Storage Key (MUST match index.html) ---
         const POCKET_STORAGE_KEY = "pocketItemsList";
@@ -1496,8 +1496,10 @@
                 return;
             }
 
-            if (APPS_SCRIPT_URL === 'PASTE_YOUR_DEPLOYED_WEB_APP_URL_HERE') {
-                showNotification("Setup incomplete. Please update APPS_SCRIPT_URL.", true);
+            // NOTE: This URL is a placeholder. You must replace it with your
+            // own deployed Google Apps Script Web App URL for this to work.
+            if (APPS_SCRIPT_URL.includes('AKfycbxQoDLPPRXACiEgCLHf8-z7dWVQ9hGKVk1TSq_7oYBzeT1rPk-9PmwsVdfU15IOWmxi3A') || APPS_SCRIPT_URL.includes('PASTE_YOUR_DEPLOYED_WEB_APP_URL_HERE')) {
+                showNotification("Setup incomplete. Please update APPS_SCRIPT_URL in the HTML.", true);
                 hideEmailModal();
                 return;
             }
