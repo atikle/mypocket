@@ -793,6 +793,40 @@
             box-shadow: 0 0 0 3px rgba(239, 64, 86, 0.3);
         }
 
+        /* MOD: Added styles for checkbox group */
+        .modal-form-group.checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .modal-checkbox {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            accent-color: var(--pocket-brand); /* Modern way to color checkboxes */
+        }
+
+        .modal-form-group.checkbox-group label {
+            font-size: 13px;
+            font-weight: 400;
+            color: var(--text-color-2);
+            margin-bottom: 0; /* Override default margin */
+            line-height: 1.4;
+        }
+        
+        .terms-link {
+            color: var(--pocket-brand);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .terms-link:hover {
+            text-decoration: underline;
+        }
+        /* END MOD */
+
+
         .modal-actions {
             display: flex;
             justify-content: flex-end;
@@ -826,6 +860,16 @@
         }
         .modal-btn.send-btn:hover {
             opacity: 0.85;
+        }
+        
+        /* MOD: Added disabled state for send button */
+        .modal-btn.send-btn:disabled {
+            background-color: var(--text-color-2);
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .modal-btn.send-btn:disabled:hover {
+            opacity: 0.5;
         }
 
         /* Loading spinner for modal button */
@@ -1132,6 +1176,19 @@
                     <label for="emailModalInput">Email Address</label>
                     <input type="email" id="emailModalInput" class="modal-input" placeholder="you@example.com" required>
                 </div>
+                
+                <!-- MOD: Added Terms Checkbox -->
+                <div class="modal-form-group checkbox-group">
+                    <input type="checkbox" id="emailTermsCheckbox" class="modal-checkbox">
+                    <label for="emailTermsCheckbox">
+                        I agree to the 
+                        <a href="https://atikle.github.io/terms/mypocket" target="_blank" rel="noopener noreferrer" class="terms-link">
+                            Terms & Privacy Policy
+                        </a>
+                    </label>
+                </div>
+                <!-- END MOD -->
+
                 <div class="modal-actions">
                     <button type="button" class="modal-btn cancel-btn" id="emailModalCancelBtn">Cancel</button>
                     <button type="submit" class="modal-btn send-btn" id="emailModalSendBtn">
@@ -1154,6 +1211,7 @@
         const POCKET_STORAGE_KEY = "pocketItemsList";
         const POCKET_SORT_KEY = "pocketSortPreference";
         const POCKET_SEARCH_KEY = "pocketSearchTerm";
+        const POCKET_TERMS_ACCEPTED_KEY = "pocketTermsAccepted"; // MOD: Added
 
         // --- DOM Elements ---
         // MOD: Removed themeToggleButton, themeIcon
@@ -1184,6 +1242,7 @@
         const emailModalOverlay = document.getElementById('emailModalOverlay');
         const emailModalForm = document.getElementById('emailModalForm');
         const emailModalInput = document.getElementById('emailModalInput');
+        const emailTermsCheckbox = document.getElementById('emailTermsCheckbox'); // MOD: Added
         const emailModalCancelBtn = document.getElementById('emailModalCancelBtn');
         const emailModalSendBtn = document.getElementById('emailModalSendBtn');
 
@@ -1459,21 +1518,46 @@
 
         
         // --- ADD: Email Modal Logic ---
+
+        // MOD: Added validation function
+        function validateEmailModal() {
+            const isEmailValid = emailModalInput.value.includes('@') && emailModalInput.value.length > 3;
+            const isTermsAccepted = emailTermsCheckbox.checked;
+            
+            if (isEmailValid && isTermsAccepted) {
+                emailModalSendBtn.disabled = false;
+            } else {
+                emailModalSendBtn.disabled = true;
+            }
+        }
+
+        // MOD: Added listeners for validation
+        emailModalInput.addEventListener('input', validateEmailModal);
+        emailTermsCheckbox.addEventListener('change', validateEmailModal);
+
         function showEmailModal() {
             const items = getPocketItems();
             if (items.length === 0) {
                 showNotification("Your pocket is empty. Add some items first!", true);
                 return;
             }
+            
+            // MOD: Check saved preference
+            const termsAccepted = localStorage.getItem(POCKET_TERMS_ACCEPTED_KEY) === 'true';
+            emailTermsCheckbox.checked = termsAccepted;
+            
             emailModalOverlay.classList.add('show');
             emailModalInput.focus();
             closeSettingsMenu();
+            
+            validateEmailModal(); // MOD: Set initial button state
         }
 
         function hideEmailModal() {
             emailModalOverlay.classList.remove('show');
             emailModalInput.value = '';
             emailModalSendBtn.classList.remove('loading');
+            validateEmailModal(); // MOD: Reset button state
         }
 
         menuEmailItemsBtn.addEventListener('click', showEmailModal);
@@ -1490,6 +1574,13 @@
 
         emailModalForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            // MOD: Added final validation check
+            if (!emailTermsCheckbox.checked || !emailModalInput.value.includes('@')) {
+                showNotification("Please enter a valid email and accept the terms.", true);
+                return;
+            }
+
             const email = emailModalInput.value;
             if (!email || !email.includes('@')) {
                 showNotification("Please enter a valid email address.", true);
@@ -1505,6 +1596,9 @@
             }
 
             emailModalSendBtn.classList.add('loading');
+            
+            // MOD: Save preference on successful send
+            localStorage.setItem(POCKET_TERMS_ACCEPTED_KEY, 'true');
 
             try {
                 const items = getPocketItems();
@@ -2118,6 +2212,8 @@
             
             searchInput.value = localStorage.getItem(POCKET_SEARCH_KEY) || '';
             toggleClearSearchBtn();
+            
+            validateEmailModal(); // MOD: Set initial modal state
             
             renderPocketGrid();
         }
