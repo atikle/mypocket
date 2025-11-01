@@ -1,0 +1,2155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Pocket</title>
+    
+    <!-- SEO and Accessibility -->
+    <meta name="description" content="My Pocket - A personal space to save links, notes, and ideas, sorted and grouped by date.">
+    <meta name="robots" content="index, follow">
+
+    <!-- Favicon (inline SVG of the bookmark logo) -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512' fill='%23ef4056'%3E%3Cpath d='M0 48C0 21.5 21.5 0 48 0l0 48V441.4l130.1-92.9c8.3-5.9 19.6-5.9 27.9 0L336 441.4V48H48V0H336c26.5 0 48 21.5 48 48V488c0 22.1-23 36.5-42.4 25.8L192 397.1 42.4 513.8C23 524.5 0 510.1 0 488V48z'/%3E%3C/svg%3E">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" media="print" onload="this.media='all'" />
+    <noscript>
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    </noscript>
+    
+    <!-- jsPDF library for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- QR Code generator library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+    
+    <!-- 
+      ADD: FIREBASE SDKs
+      We are adding the Firebase SDKs for Authentication (auth) and
+      the Firestore Database (firestore).
+    -->
+    <script type="module">
+      // This is the V11 modular SDK
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+      import { 
+        getAuth, 
+        onAuthStateChanged, 
+        signOut 
+      } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+      import { 
+        getFirestore, 
+        collection, 
+        doc, 
+        addDoc, 
+        deleteDoc, 
+        updateDoc, 
+        onSnapshot, 
+        query,
+        getDocs,
+        setLogLevel
+      } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+      // --- Global Firebase & State Variables ---
+      let db, auth, userId;
+      let firestoreListenerUnsubscribe = null;
+      let currentPocketItems = []; // Stores the current items for PDF/Email export
+      let appId = 'default-app-id'; // Default, will be replaced
+      let notificationTimeout; // For notification toast
+
+      // --- Storage Keys for UI Preferences (Data is no longer in localStorage) ---
+      const POCKET_SORT_KEY = "pocketSortPreference";
+      const POCKET_SEARCH_KEY = "pocketSearchTerm";
+      const POCKET_TERMS_ACCEPTED_KEY = "pocketTermsAccepted";
+      const POCKET_THEME_KEY = "theme";
+
+      // --- DOM Elements ---
+      // ** MOVED DOM ELEMENTS UP so they exist before initFirebase() is called **
+      const pocketGridContainer = document.getElementById('pocketGridContainer');
+      const sortControlsContainer = document.querySelector('.sort-controls-container');
+      const sortOptionsGroup = document.querySelector('.sort-options-group');
+      const clearAllBtn = document.getElementById('clearAllBtn');
+      const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+      const addItemForm = document.getElementById('addItemForm');
+      const addItemInput = document.getElementById('addItemInput');
+      const searchInput = document.getElementById('searchInput');
+      const clearSearchBtn = document.getElementById('clearSearchBtn');
+      
+      const settingsBtn = document.getElementById('settingsBtn');
+      const settingsMenu = document.getElementById('settingsMenu');
+      const menuDarkModeToggle = document.getElementById('menuDarkModeToggle');
+      const menuThemeIcon = document.getElementById('menuThemeIcon');
+      const menuThemeText = document.getElementById('menuThemeText');
+      const menuThemeState = document.getElementById('menuThemeState');
+      
+      const jsonImportBtn = document.getElementById('jsonImportBtn');
+      const jsonExportBtn = document.getElementById('jsonExportBtn');
+      const jsonImportInput = document.getElementById('jsonImportInput');
+      const menuDownloadPdfBtn = document.getElementById('menuDownloadPdfBtn');
+      const menuEmailItemsBtn = document.getElementById('menuEmailItemsBtn');
+
+      const emailModalOverlay = document.getElementById('emailModalOverlay');
+      const emailModalForm = document.getElementById('emailModalForm');
+      const emailModalInput = document.getElementById('emailModalInput');
+      const emailTermsCheckbox = document.getElementById('emailTermsCheckbox');
+      const emailModalCancelBtn = document.getElementById('emailModalCancelBtn');
+      const emailModalSendBtn = document.getElementById('emailModalSendBtn');
+
+      const notificationToast = document.getElementById('notificationToast');
+      const { jsPDF } = window.jspdf; // PDF generation
+
+      // Auth-related UI
+      const authStatusMessage = document.getElementById('auth-status-message');
+      const loginBtn = document.getElementById('loginBtn');
+      const logoutBtn = document.getElementById('logoutBtn');
+      const mainContentContainer = document.getElementById('mainContentContainer');
+      const loginPromptMessage = document.getElementById('loginPromptMessage');
+      
+      // *** REMOVED ALL PASSWORDLESS-AUTH MODAL DOM ELEMENTS ***
+      
+      // --- Call initFirebase() AFTER globals and DOM elements are declared ---
+      initFirebase();
+
+      // --- Textarea Auto-Resize Logic ---
+      function autoResizeTextarea(el) {
+          el.style.height = 'auto';
+          const scHeight = el.scrollHeight;
+          const maxHeight = el.classList.contains('edit-textarea') ? 300 : 500;
+          if (scHeight > maxHeight) {
+              el.style.height = `${maxHeight}px`;
+              el.style.overflowY = 'auto';
+          } else {
+              el.style.height = `${scHeight}px`;
+              el.style.overflowY = 'hidden';
+          }
+      }
+
+      addItemInput.addEventListener('input', () => {
+          autoResizeTextarea(addItemInput);
+      });
+      
+      // --- Notification Logic (Unchanged) ---
+      function showNotification(message, isError = false) {
+          if (notificationTimeout) {
+              clearTimeout(notificationTimeout);
+          }
+          notificationToast.textContent = message;
+          notificationToast.classList.toggle('error', isError);
+          notificationToast.classList.add('show');
+          notificationTimeout = setTimeout(() => {
+              notificationToast.classList.remove('show');
+          }, 3000);
+      }
+      
+      // --- Firebase Initialization & Auth Handling ---
+      async function initFirebase() {
+          appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+          
+          // User's Firebase Config:
+          const firebaseConfig = {
+            apiKey: "AIzaSyCiAI1AScqKoH7O6fJh4dCiwCUC2BUxd0U",
+            authDomain: "my-pocket-e547b.firebaseapp.com",
+            projectId: "my-pocket-e547b",
+            storageBucket: "my-pocket-e547b.firebasestorage.app",
+            messagingSenderId: "361442982929",
+            appId: "1:361442982929:web:7866e10593e54c75cec5b0",
+            measurementId: "G-X8JGLLE2PP"
+          };
+          // END OF PASTED CONFIG
+
+          if (!firebaseConfig.apiKey || !firebaseConfig.authDomain) {
+              console.error("Firebase config is missing API key or Auth Domain.");
+              // Use the correct DOM elements now
+              loginBtn.style.display = 'none';
+              loginPromptMessage.textContent = "This app is not configured for login.";
+              loginPromptMessage.style.display = 'block';
+              mainContentContainer.style.display = 'none';
+              return;
+          }
+
+          try {
+              const app = initializeApp(firebaseConfig);
+              auth = getAuth(app);
+              db = getFirestore(app);
+              setLogLevel('Debug'); // For easier debugging
+              
+              // Set up the main auth state listener
+              onAuthStateChanged(auth, async (user) => {
+                  if (user) {
+                      // --- User is LOGGED IN ---
+                      userId = user.uid;
+                      console.log('User is logged in:', userId);
+                      
+                      // Update UI
+                      mainContentContainer.style.display = 'block';
+                      loginPromptMessage.style.display = 'none';
+                      // Use email if available, otherwise just show user is logged in
+                      authStatusMessage.textContent = user.email ? `${user.email}` : 'Logged In';
+                      loginBtn.style.display = 'none';
+                      logoutBtn.style.display = 'block';
+
+                      // Load UI preferences
+                      searchInput.value = localStorage.getItem(POCKET_SEARCH_KEY) || '';
+                      toggleClearSearchBtn();
+                      validateEmailModal();
+
+                      // Setup REAL-TIME Firestore listener
+                      await setupFirestoreListener(appId, userId);
+
+                  } else {
+                      // --- User is LOGGED OUT ---
+                      console.log('User is signed out. Redirecting to login.html');
+                      userId = null;
+                      
+                      // Detach old listener
+                      if (firestoreListenerUnsubscribe) {
+                          firestoreListenerUnsubscribe();
+                          firestoreListenerUnsubscribe = null;
+                      }
+
+                      // *** REDIRECT TO LOGIN PAGE ***
+                      // FIX: Use a valid relative URL path starting with './'
+                      window.location.href = './login.html';
+
+                      // The code below will likely not run, but it's good practice
+                      // to reset the UI in case the redirect fails.
+                      mainContentContainer.style.display = 'none';
+                      loginPromptMessage.style.display = 'block';
+                      authStatusMessage.textContent = '';
+                      loginBtn.style.display = 'block';
+                      logoutBtn.style.display = 'none';
+                      renderPocketGrid([]);
+                  }
+              });
+
+          } catch (e) {
+              console.error("Firebase Init Error:", e);
+              showNotification(`Firebase Error: ${e.message}`, true);
+          }
+      }
+
+      // --- REMOVED: Passwordless Auth Functions ---
+      // (handleLoginRedirect, sendLoginLink, showLoginModal, etc.)
+
+      // --- ADD: Firestore Data Functions ---
+      async function setupFirestoreListener(appId, uid) {
+          if (firestoreListenerUnsubscribe) {
+              firestoreListenerUnsubscribe();
+          }
+
+          const itemsColRef = collection(db, 'artifacts', appId, 'users', uid, 'items');
+          const q = query(itemsColRef);
+
+          firestoreListenerUnsubscribe = onSnapshot(q, (querySnapshot) => {
+              let items = [];
+              querySnapshot.forEach((doc) => {
+                  items.push({ 
+                      id: doc.id,
+                      ...doc.data() 
+                  });
+              });
+              
+              currentPocketItems = items; 
+              renderPocketGrid(items);
+
+          }, (error) => {
+              console.error("Error listening to Firestore:", error);
+              showNotification("Error: Could not load items.", true);
+          });
+      }
+
+      async function addNewPocketItem(text) {
+          if (!text || text.trim() === '') return;
+          if (!userId) {
+              showNotification("You must be logged in to add items.", true);
+              return;
+          }
+
+          const newItem = {
+              text: text.trim(),
+              dateAdded: new Date().toISOString(),
+              wasEdited: false 
+          };
+
+          try {
+              const itemsColRef = collection(db, 'artifacts', appId, 'users', userId, 'items');
+              await addDoc(itemsColRef, newItem);
+              
+              addItemInput.value = '';
+              autoResizeTextarea(addItemInput);
+              localStorage.setItem(POCKET_SORT_KEY, 'latest');
+              localStorage.setItem(POCKET_SEARCH_KEY, '');
+              searchInput.value = '';
+              toggleClearSearchBtn();
+              cancelAllEdits();
+              
+          } catch (error) {
+              console.error("Error adding document: ", error);
+              showNotification("Error: Could not save item.", true);
+          }
+      }
+
+      async function deletePocketItem(itemId) {
+          if (!userId || !itemId) {
+              showNotification("Error: Could not delete item.", true);
+              return;
+          }
+          
+          try {
+              const itemRef = doc(db, 'artifacts', appId, 'users', userId, 'items', itemId);
+              await deleteDoc(itemRef);
+          } catch (error) {
+              console.error("Error deleting document: ", error);
+              showNotification("Error: Could not delete item.", true);
+          }
+      }
+
+      async function updatePocketItem(itemId, newText) {
+          if (!userId || !itemId) {
+               showNotification("Error: Could not update item.", true);
+               return;
+          }
+          
+          if (!newText || newText.trim() === '') {
+              deletePocketItem(itemId); 
+              return; 
+          }
+
+          const updatedData = {
+              text: newText.trim(),
+              dateAdded: new Date().toISOString(),
+              wasEdited: true 
+          };
+
+          try {
+              const itemRef = doc(db, 'artifacts', appId, 'users', userId, 'items', itemId);
+              await updateDoc(itemRef, updatedData);
+          } catch (error) {
+              console.error("Error updating document: ", error);
+              showNotification("Error: Could not update item.", true);
+          }
+      }
+      
+      clearAllBtn.addEventListener('click', async () => {
+          if (!userId) {
+              showNotification("You must be logged in to clear items.", true);
+              return;
+          }
+          
+          if (clearAllBtn.classList.contains('confirm-active')) {
+              clearAllBtn.disabled = true;
+              clearAllBtn.querySelector('.btn-text').textContent = 'Clearing...';
+
+              try {
+                  const itemsColRef = collection(db, 'artifacts', appId, 'users', userId, 'items');
+                  const q = query(itemsColRef);
+                  const querySnapshot = await getDocs(q);
+
+                  const deletePromises = [];
+                  querySnapshot.forEach((doc) => {
+                      deletePromises.push(deleteDoc(doc.ref));
+                  });
+                  
+                  await Promise.all(deletePromises);
+                  
+                  resetClearAllBtn();
+                  clearAllBtn.disabled = false;
+
+              } catch (error) {
+                  console.error("Error clearing all items:", error);
+                  showNotification("Error: Could not clear items.", true);
+                  resetClearAllBtn();
+                  clearAllBtn.disabled = false;
+              }
+
+          } else {
+              clearAllBtn.classList.add('confirm-active');
+              clearAllBtn.querySelector('.btn-text').textContent = 'Are you sure?';
+              cancelAllEdits();
+          }
+      });
+
+      // --- Settings Menu Logic (Unchanged) ---
+      function closeSettingsMenu() {
+          settingsMenu.classList.remove('show');
+          settingsBtn.setAttribute('aria-expanded', 'false');
+      }
+      settingsBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const isShown = settingsMenu.classList.toggle('show');
+          settingsBtn.setAttribute('aria-expanded', isShown);
+      });
+      window.addEventListener('click', (e) => {
+          if (!settingsMenu.contains(e.target) && !settingsBtn.contains(e.target)) {
+              closeSettingsMenu();
+          }
+      });
+      window.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && settingsMenu.classList.contains('show')) {
+              closeSettingsMenu();
+              settingsBtn.focus();
+          }
+      });
+
+      // --- Theme Toggle Logic (Unchanged) ---
+      function applyTheme(theme) {
+          if (theme === 'dark') {
+              document.documentElement.classList.add('dark');
+              menuThemeIcon.classList.remove('fa-sun');
+              menuThemeIcon.classList.add('fa-moon');
+              menuThemeText.textContent = 'Dark Mode';
+              menuThemeState.textContent = 'On';
+          } else {
+              document.documentElement.classList.remove('dark');
+              menuThemeIcon.classList.remove('fa-moon');
+              menuThemeIcon.classList.add('fa-sun');
+              menuThemeText.textContent = 'Light Mode';
+              menuThemeState.textContent = 'Off';
+          }
+          localStorage.setItem(POCKET_THEME_KEY, theme);
+      }
+      menuDarkModeToggle.addEventListener('click', () => {
+          let theme = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+          applyTheme(theme);
+      });
+      menuDarkModeToggle.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              menuDarkModeToggle.click();
+          }
+      });
+      
+      // --- JSON Export Logic (Unchanged) ---
+      function exportToJson() {
+          const allItems = currentPocketItems;
+          const exportData = {
+              appIdentifier: { app: "mypocket", owner: "atikle" },
+              items: allItems.map(item => ({
+                  text: item.text,
+                  dateAdded: item.dateAdded,
+                  wasEdited: item.wasEdited
+              }))
+          };
+          const jsonString = JSON.stringify(exportData, null, 2);
+          const blob = new Blob([jsonString], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `mypocket_export_${new Date().toISOString().split('T')[0]}.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          showNotification('Items exported successfully!');
+          closeSettingsMenu();
+      }
+      jsonExportBtn.addEventListener('click', exportToJson);
+      jsonExportBtn.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') e.preventDefault(); exportToJson();
+      });
+
+      // --- JSON Import Logic (Unchanged) ---
+      function importFromJson(file) {
+          if (!file || !userId) {
+             showNotification("You must be logged in to import items.", true);
+             return;
+          }
+          const reader = new FileReader();
+          reader.onload = async (e) => {
+              try {
+                  const data = JSON.parse(e.target.result);
+                  if (!data.appIdentifier || data.appIdentifier.app !== 'mypocket') {
+                      throw new Error('Invalid or missing file identifier.');
+                  }
+                  if (!Array.isArray(data.items)) {
+                      throw new Error('Invalid data format: "items" is not an array.');
+                  }
+                  
+                  const itemsColRef = collection(db, 'artifacts', appId, 'users', userId, 'items');
+                  showNotification(`Importing ${data.items.length} items...`);
+                  
+                  const addPromises = data.items.map(item => {
+                      if (typeof item === 'object' && item !== null && 'text' in item && 'dateAdded' in item) {
+                           return addDoc(itemsColRef, {
+                               text: item.text,
+                               dateAdded: item.dateAdded,
+                               wasEdited: item.wasEdited || false
+                           });
+                      }
+                      return Promise.resolve();
+                  });
+                  await Promise.all(addPromises);
+                  
+                  localStorage.setItem(POCKET_SORT_KEY, 'latest');
+                  localStorage.setItem(POCKET_SEARCH_KEY, '');
+                  searchInput.value = '';
+                  toggleClearSearchBtn();
+                  cancelAllEdits();
+                  showNotification(`Successfully imported ${data.items.length} items.`);
+
+              } catch (err) {
+                  console.error('Import failed:', err);
+                  showNotification(`Import failed: ${err.message}`, true);
+              } finally {
+                  jsonImportInput.value = null;
+              }
+          };
+          reader.onerror = () => {
+              showNotification('Error reading file.', true);
+              jsonImportInput.value = null;
+_          };
+          reader.readAsText(file);
+          closeSettingsMenu();
+      }
+      jsonImportBtn.addEventListener('click', () => jsonImportInput.click());
+      jsonImportBtn.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') e.preventDefault(); jsonImportInput.click();
+      });
+      jsonImportInput.addEventListener('change', (e) => importFromJson(e.target.files[0]));
+      
+      // --- Email Modal Logic (Unchanged) ---
+      function validateEmailModal() {
+          const isEmailValid = emailModalInput.value.includes('@') && emailModalInput.value.length > 3;
+          const isTermsAccepted = emailTermsCheckbox.checked;
+          emailModalSendBtn.disabled = !(isEmailValid && isTermsAccepted);
+      }
+      emailModalInput.addEventListener('input', validateEmailModal);
+      emailTermsCheckbox.addEventListener('change', validateEmailModal);
+
+      function showEmailModal() {
+          const items = currentPocketItems;
+          if (items.length === 0) {
+              showNotification("Your pocket is empty. Add some items first!", true);
+              return;
+          }
+          const termsAccepted = localStorage.getItem(POCKET_TERMS_ACCEPTED_KEY) === 'true';
+          emailTermsCheckbox.checked = termsAccepted;
+          emailModalOverlay.classList.add('show');
+          emailModalInput.focus();
+          closeSettingsMenu();
+          validateEmailModal();
+      }
+      function hideEmailModal() {
+          emailModalOverlay.classList.remove('show');
+          emailModalInput.value = '';
+          emailModalSendBtn.classList.remove('loading');
+          validateEmailModal();
+      }
+      menuEmailItemsBtn.addEventListener('click', showEmailModal);
+      menuEmailItemsBtn.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') e.preventDefault(); showEmailModal();
+      });
+      emailModalCancelBtn.addEventListener('click', hideEmailModal);
+      emailModalOverlay.addEventListener('click', (e) => {
+          if (e.target === emailModalOverlay) {
+              hideEmailModal();
+          }
+      });
+      
+      emailModalForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyKVRgkVy0IOu-WdMKNFOwUA-uTd7TqvubWm0rlJPBDoTdby3-8KkBsWsDFiWPan7PHaA/exec';
+          if (!emailTermsCheckbox.checked || !emailModalInput.value.includes('@')) {
+              showNotification("Please enter a valid email and accept the terms.", true);
+              return;
+          }
+          const email = emailModalInput.value;
+          if (APPS_SCRIPT_URL.includes('PASTE_YOUR_DEPLOYED_WEB_APP_URL_HERE')) {
+              showNotification("Setup incomplete. Please update APPS_SCRIPT_URL in the HTML.", true);
+              hideEmailModal();
+              return;
+          }
+          emailModalSendBtn.classList.add('loading');
+          localStorage.setItem(POCKET_TERMS_ACCEPTED_KEY, 'true');
+          try {
+              const items = currentPocketItems;
+              const payloadItems = items.map(item => ({
+                  text: item.text,
+                  dateAdded: item.dateAdded,
+                  wasEdited: item.wasEdited
+              }));
+              const payload = {
+                  email: email,
+                  items: payloadItems
+              };
+              await fetch(APPS_SCRIPT_URL, {
+                  method: "POST",
+                  headers: { "Content-Type": "text/plain" },
+                  body: JSON.stringify(payload),
+                  mode: 'no-cors'
+              });
+              showNotification(`Sending items to ${email}...`);
+              hideEmailModal();
+          } catch (error) {
+              console.log('Apps Script fetch initiated (errors are expected in no-cors mode):', error);
+              showNotification(`Sending items to ${email}...`);
+              hideEmailModal();
+          }
+      });
+
+      // --- Sort Button Logic (Unchanged) ---
+      sortControlsContainer.addEventListener('click', (e) => {
+          const clickedButton = e.target.closest('.sort-btn');
+          if (!clickedButton) return; 
+          if (clickedButton.closest('.sort-actions-group')) return;
+          
+          sortOptionsGroup.querySelectorAll('.sort-btn').forEach(btn => {
+              btn.classList.remove('active');
+              btn.setAttribute('aria-pressed', 'false');
+          });
+          clickedButton.classList.add('active');
+          clickedButton.setAttribute('aria-pressed', 'true');
+          const sortValue = clickedButton.dataset.sort;
+          localStorage.setItem(POCKET_SORT_KEY, sortValue);
+          cancelAllEdits();
+          renderPocketGrid(currentPocketItems);
+      });
+
+      function resetClearAllBtn() {
+          clearAllBtn.classList.remove('confirm-active');
+          clearAllBtn.querySelector('.btn-text').textContent = clearAllBtn.dataset.defaultText;
+      }
+      clearAllBtn.addEventListener('mouseleave', () => {
+          if(clearAllBtn.classList.contains('confirm-active')) {
+              setTimeout(resetClearAllBtn, 2000); 
+          }
+      });
+      
+      function getSortedItems(items) {
+          let sortedItems = [...items]; 
+          const sortPreference = localStorage.getItem(POCKET_SORT_KEY) || 'latest';
+          if (sortPreference === 'oldest') {
+              sortedItems.sort((a, b) => new Date(a.dateAdded) - new Date(b.dateAdded));
+          } else {
+              sortedItems.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
+          }
+          return sortedItems;
+      }
+
+      // --- Download PDF Logic (Unchanged) ---
+      function generateAndDownloadPDF() {
+          cancelAllEdits();
+          console.log('Generating PDF...');
+          try {
+              const doc = new jsPDF();
+              const allItems = getSortedItems(currentPocketItems);
+              const sortPreference = localStorage.getItem(POCKET_SORT_KEY) || 'latest';
+              const searchTerm = (localStorage.getItem(POCKET_SEARCH_KEY) || '').toLowerCase();
+              const items = searchTerm ? allItems.filter(item => 
+                  item.text.toLowerCase().includes(searchTerm)
+              ) : allItems;
+              
+              const PAGE_MARGIN = 15; 
+              const PAGE_WIDTH = doc.internal.pageSize.getWidth();
+              const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
+              const CONTENT_WIDTH = PAGE_WIDTH - (PAGE_MARGIN * 2);
+              const BRAND_COLOR = '#ef4056';
+              const itemDateOptions = {
+                    weekday: 'long', 
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                };
+              const monthYearFormatter = new Intl.DateTimeFormat(undefined, {
+                    year: 'numeric',
+                    month: 'long'
+                });
+            
+                let cursor = 0;
+                let currentPage = 1;
+                
+                function addPageHeader() {
+                    doc.setFillColor(BRAND_COLOR);
+                    doc.rect(0, 0, PAGE_WIDTH, 45, 'F'); 
+                    doc.setFontSize(20);
+                    doc.setFont(undefined, 'bold');
+                    doc.setTextColor('#FFFFFF');
+                    doc.text("My Pocket", PAGE_MARGIN, 28);
+                    try {
+                        const qr = qrcode(0, 'M'); 
+                        qr.addData("https://atikle.github.io/mypocket");
+                        qr.make();
+                        const qrDataURL = qr.createDataURL(4, 4); 
+                        doc.addImage(qrDataURL, 'PNG', PAGE_WIDTH - PAGE_MARGIN - 30, (45 - 30) / 2, 30, 30);
+                    } catch (e) {
+                        console.error("Failed to generate or add QR code:", e);
+                    }
+                    cursor = 60; 
+                }
+                
+                function addPageInfo() {
+                    doc.setFontSize(10);
+                    doc.setFont(undefined, 'normal');
+                    doc.setTextColor('#65676b');
+                    const genDate = `Generated: ${new Date().toLocaleString(undefined, {year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'})}`;
+                    let sortInfo = `Sorted: ${sortPreference.charAt(0).toUpperCase() + sortPreference.slice(1)}`;
+                    doc.text(genDate, PAGE_MARGIN, cursor);
+                    doc.text(sortInfo, PAGE_WIDTH - PAGE_MARGIN, cursor, { align: 'right' });
+                    cursor += 6; 
+                    if (searchTerm) {
+                        doc.text(`Filtered by: "${searchTerm}"`, PAGE_MARGIN, cursor);
+                        cursor += 6; 
+                    }
+                    cursor += 10; 
+                }
+                function addPageFooter() {
+                    doc.setFontSize(9);
+                    doc.setFont(undefined, 'normal');
+                    doc.setTextColor('#65676b');
+                    const link = "atikle.github.io/mypocket";
+                    doc.text(link, PAGE_MARGIN, PAGE_HEIGHT - 10);
+                    doc.link(PAGE_MARGIN, PAGE_HEIGHT - 13, doc.getTextWidth(link), 10, { url: 'https://' + link });
+                    doc.text(`Page ${currentPage}`, PAGE_WIDTH / 2, PAGE_HEIGHT - 10, { align: 'center' });
+                }
+                function checkPageBreak(requiredHeight) {
+                    if (cursor + requiredHeight > PAGE_HEIGHT - 25) {
+                        addPageFooter();
+                        doc.addPage();
+                        currentPage++;
+                        addPageHeader();
+                        addPageInfo(); 
+                        return true;
+                    }
+                    return false;
+                }
+                addPageHeader();
+                addPageInfo(); 
+                if (items.length === 0) {
+                     doc.setFontSize(12);
+                     doc.setTextColor('#65676b');
+                     doc.text(searchTerm ? `No items match your search for "${searchTerm}".` : "Your pocket is empty.", PAGE_MARGIN, cursor);
+                } else {
+                    const showMonthHeaders = (sortPreference === 'latest' || sortPreference === 'oldest');
+                    let currentMonthYear = ""; 
+                    items.forEach((item) => {
+                        const itemDateObj = new Date(item.dateAdded);
+                        let itemDate = itemDateObj.toLocaleDateString(undefined, itemDateOptions) + (item.wasEdited ? " (edited)" : "");
+                        if (showMonthHeaders) {
+                            const monthYear = monthYearFormatter.format(itemDateObj);
+                            if (monthYear !== currentMonthYear) {
+                                currentMonthYear = monthYear;
+                                checkPageBreak(20); 
+                                doc.setFontSize(16);
+                                doc.setFont(undefined, 'bold');
+                                doc.setTextColor('#050505');
+                                doc.text(monthYear, PAGE_MARGIN, cursor);
+                                cursor += 20;
+                            }
+                        }
+                        const textLines = doc.splitTextToSize(item.text, CONTENT_WIDTH - 20);
+                        const textHeight = doc.getTextDimensions(textLines).h;
+                        const totalCardHeight = textHeight + 10 + 30; // text, date, padding
+                        checkPageBreak(totalCardHeight + 10);
+                        doc.setDrawColor('#E0E0E0');
+                        doc.setFillColor('#FFFFFF');
+                        doc.roundedRect(PAGE_MARGIN, cursor, CONTENT_WIDTH, totalCardHeight, 3, 3, 'FD'); 
+                        let cardCursor = cursor + 15; 
+                        doc.setFontSize(10);
+                        doc.setFont(undefined, 'normal');
+                        doc.setTextColor('#050505');
+                        doc.text(textLines, PAGE_MARGIN + 10, cardCursor);
+                        cardCursor += textHeight + 10; 
+                        doc.setFontSize(9);
+                        doc.setTextColor('#65676b');
+                        doc.text(itemDate, PAGE_MARGIN + 10, cardCursor);
+                        cursor += totalCardHeight + 10; 
+                    });
+                }
+                addPageFooter();
+                doc.save('my-pocket-items.pdf');
+                console.log('PDF generation complete.');
+
+            } catch (e) {
+                console.error("Failed to generate PDF:", e);
+                showNotification('Failed to generate PDF.', true);
+            }
+        }
+        downloadPdfBtn.addEventListener('click', generateAndDownloadPDF);
+        menuDownloadPdfBtn.addEventListener('click', () => {
+            generateAndDownloadPDF();
+            closeSettingsMenu();
+        });
+        menuDownloadPdfBtn.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                generateAndDownloadPDF();
+                closeSettingsMenu();
+            }
+        });
+
+
+        // --- Render Logic (Unchanged) ---
+        function renderPocketGrid(items) {
+            const isPocketEmpty = items.length === 0;
+            const searchTerm = (localStorage.getItem(POCKET_SEARCH_KEY) || '').toLowerCase();
+            const sortedItems = getSortedItems(items);
+            const filteredItems = searchTerm ? sortedItems.filter(item => 
+                item.text.toLowerCase().includes(searchTerm)
+            ) : sortedItems;
+
+            pocketGridContainer.innerHTML = ''; 
+
+            if (isPocketEmpty) {
+                pocketGridContainer.innerHTML = '<p class="pocket-empty-message">You have not saved anything yet</p>';
+                clearAllBtn.style.display = 'none'; 
+                clearAllBtn.setAttribute('aria-disabled', 'true');
+                downloadPdfBtn.disabled = true;
+                downloadPdfBtn.setAttribute('aria-disabled', 'true');
+                return;
+            }
+            
+            clearAllBtn.style.display = ''; 
+            clearAllBtn.setAttribute('aria-disabled', 'false');
+            downloadPdfBtn.disabled = filteredItems.length === 0;
+            downloadPdfBtn.setAttribute('aria-disabled', filteredItems.length === 0);
+            resetClearAllBtn(); 
+            
+            if (filteredItems.length === 0 && searchTerm) {
+                const messageP = document.createElement('p');
+                messageP.className = 'pocket-empty-message';
+                messageP.textContent = `No items match your search for "`;
+                const searchTermSpan = document.createElement('span');
+                searchTermSpan.style.fontWeight = '600';
+                searchTermSpan.textContent = searchTerm;
+                messageP.appendChild(searchTermSpan);
+                messageP.appendChild(document.createTextNode(`".`));
+                pocketGridContainer.appendChild(messageP);
+            }
+
+            const sortButtons = document.querySelectorAll('.sort-options-group .sort-btn');
+            const sortPreference = localStorage.getItem(POCKET_SORT_KEY) || 'latest';
+            sortButtons.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.sort === sortPreference);
+                btn.setAttribute('aria-pressed', btn.dataset.sort === sortPreference);
+            });
+
+            const itemDateOptions = {
+                weekday: 'long', 
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            };
+            const monthYearFormatter = new Intl.DateTimeFormat(undefined, {
+                year: 'numeric',
+                month: 'long'
+            });
+            let currentMonthYear = ""; 
+            const showMonthHeaders = (sortPreference === 'latest' || sortPreference === 'oldest');
+
+            filteredItems.forEach((item) => {
+                let itemDateObj;
+                try {
+                    itemDateObj = new Date(item.dateAdded);
+                } catch(e) {
+                    itemDateObj = new Date();
+                }
+                
+                if (showMonthHeaders) {
+                    const monthYear = monthYearFormatter.format(itemDateObj);
+                    if (monthYear !== currentMonthYear) {
+                        currentMonthYear = monthYear;
+                        const monthHeader = document.createElement('h2');
+                        monthHeader.className = 'month-header';
+                        monthHeader.textContent = monthYear;
+                        pocketGridContainer.appendChild(monthHeader);
+                    }
+                }
+
+                const itemEl = document.createElement('div');
+                itemEl.className = 'pocket-post-item';
+                itemEl.dataset.id = item.id; 
+                
+                let itemDate = "Date not available";
+                try {
+                     itemDate = itemDateObj.toLocaleDateString(undefined, itemDateOptions);
+                } catch(e) {
+                    console.warn("Could not parse date:", item.dateAdded);
+                }
+                
+                const wasEdited = item.wasEdited || false;
+                const editedIndicator = wasEdited ? '<span class="edited-indicator">(edited)</span>' : '';
+
+                const textNode = document.createTextNode(item.text);
+                const textDiv = document.createElement('div');
+                textDiv.className = 'item-text';
+                textDiv.appendChild(textNode);
+                
+                const truncatedText = item.text.length > 50 ? item.text.substring(0, 50) + '...' : item.text;
+                
+                itemEl.innerHTML = `
+                    <div class="post-header">
+                        <div class="post-header-logo">
+                            <i class="fa-solid fa-bookmark" aria-hidden="true"></i>
+                        </div>
+                        <div class="post-header-date">
+                            ${itemDate}${editedIndicator}
+                        </div>
+                    </div>
+                    <div class="post-body">
+                        <!-- Text will be appended here -->
+                    </div>
+                    <div class="post-footer">
+                        <div class="item-actions">
+                            <a href="https://www.google.com/search?q=${encodeURIComponent(item.text)}" 
+                               target="_blank" 
+                               class="item-action-btn item-search-btn" 
+                               title="Search on Google"
+                               aria-label="Search for '${truncatedText}' on Google">
+                                <i class="fa-brands fa-google" aria-hidden="true"></i>
+                            </a>
+                            <button class="item-action-btn item-edit-btn" 
+                                    title="Edit"
+                                    aria-label="Edit item: '${truncatedText}'">
+                                <i class="fas fa-pencil" aria-hidden="true"></i>
+                                <i class="fas fa-save" aria-hidden="true"></i>
+                            </button>
+                            <button class="item-action-btn item-delete-btn" 
+                                    title="Delete"
+                                    aria-label="Delete item: '${truncatedText}'">
+                                <i class="fas fa-trash" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                itemEl.querySelector('.post-body').prepend(textDiv);
+                
+                pocketGridContainer.appendChild(itemEl);
+            });
+        }
+
+        // --- Cancel All Edits Logic (Unchanged) ---
+        function cancelAllEdits() {
+            document.querySelectorAll('.pocket-post-item.is-editing').forEach(itemEl => {
+                itemEl.classList.remove('is-editing');
+                itemEl.querySelector('.edit-textarea')?.remove(); 
+                const editButton = itemEl.querySelector('.item-edit-btn');
+                if (editButton) {
+                    const truncatedText = itemEl.querySelector('.item-text')?.textContent.substring(0, 50) + '...' || 'item';
+                    editButton.title = 'Edit';
+                    editButton.setAttribute('aria-label', `Edit item: '${truncatedText}'`);
+                }
+            });
+        }
+
+        // --- Event Delegation (Unchanged) ---
+        pocketGridContainer.addEventListener('click', (e) => {
+            const deleteButton = e.target.closest('.item-delete-btn'); 
+            if (deleteButton) {
+                const itemEl = deleteButton.closest('.pocket-post-item'); 
+                const itemId = itemEl.dataset.id; 
+                itemEl.classList.add('pocket-item-fade-out');
+                setTimeout(() => {
+                    deletePocketItem(itemId);
+                }, 300); 
+                return; 
+            }
+            
+            const editButton = e.target.closest('.item-edit-btn');
+            if (editButton) {
+                const itemEl = editButton.closest('.pocket-post-item');
+                const itemId = itemEl.dataset.id; 
+                const isEditing = itemEl.classList.contains('is-editing');
+                
+                if (isEditing) {
+                    const editTextArea = itemEl.querySelector('.edit-textarea');
+                    const newText = editTextArea.value;
+                    updatePocketItem(itemId, newText);
+                } else {
+                    cancelAllEdits();
+                    const textDiv = itemEl.querySelector('.item-text');
+                    const currentText = textDiv.textContent;
+                    const editTextArea = document.createElement('textarea');
+                    editTextArea.className = 'edit-textarea';
+                    editTextArea.value = currentText;
+                    editTextArea.addEventListener('input', () => autoResizeTextarea(editTextArea));
+                    itemEl.querySelector('.post-body').appendChild(editTextArea);
+                    itemEl.classList.add('is-editing');
+                    autoResizeTextarea(editTextArea);
+                    editTextArea.focus(); 
+                    const truncatedText = currentText.length > 50 ? currentText.substring(0, 50) + '...' : currentText;
+                    editButton.title = 'Save';
+                    editButton.setAttribute('aria-label', `Save changes for: '${truncatedText}'`);
+                }
+            }
+        });
+        
+        // --- Search Logic (Unchanged) ---
+        function toggleClearSearchBtn() {
+            if (searchInput.value.length > 0) {
+                clearSearchBtn.style.display = 'flex';
+            } else {
+                clearSearchBtn.style.display = 'none';
+            }
+        }
+        searchInput.addEventListener('input', () => {
+            localStorage.setItem(POCKET_SEARCH_KEY, searchInput.value);
+            toggleClearSearchBtn();
+            cancelAllEdits(); 
+            renderPocketGrid(currentPocketItems);
+        });
+        clearSearchBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            localStorage.setItem(POCKET_SEARCH_KEY, '');
+            toggleClearSearchBtn();
+            cancelAllEdits();
+            renderPocketGrid(currentPocketItems);
+            searchInput.focus();
+        });
+        
+        // --- Real-time Sync Listener (Unchanged) ---
+        window.addEventListener('storage', (e) => {
+            if (e.key === POCKET_SORT_KEY) {
+                cancelAllEdits();
+                renderPocketGrid(currentPocketItems);
+            }
+            if (e.key === POCKET_SEARCH_KEY) {
+                searchInput.value = localStorage.getItem(POCKET_SEARCH_KEY) || '';
+                toggleClearSearchBtn();
+                cancelAllEdits();
+                renderPocketGrid(currentPocketItems);
+            }
+            if (e.key === POCKET_THEME_KEY) {
+                applyTheme(localStorage.getItem(POCKET_THEME_KEY) || 'light');
+            }
+        });
+
+        // --- Initial Load ---
+        applyTheme(localStorage.getItem(POCKET_THEME_KEY) || 'light');
+        addItemForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            addNewPocketItem(addItemInput.value);
+        });
+
+        // --- Auth UI Listeners ---
+        // ** Simplified: We only need a logout button listener **
+        logoutBtn.addEventListener('click', () => signOut(auth));
+        
+        // ** REMOVED: All listeners for the passwordless auth modal **
+
+    </script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+        ::selection {
+            background-color: var(--pocket-brand);
+            color: white;
+        }
+        ::-moz-selection {
+            background-color: var(--pocket-brand);
+            color: white;
+        }
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        :root {
+            --transition-speed-fast: 0.2s;
+            --transition-speed-normal: 0.3s;
+            --ease-out-quad: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            
+            --background-1: white;
+            --background-2: #f0f2f5;
+            --card-background-1: white;
+            --text-color-1: #050505;
+            --text-color-2: #65676b;
+            --shadow-1: 0 2px 6px 0 rgba(136, 148, 171, 0.2), 0 24px 20px -24px rgba(71, 82, 107, 0.1);
+            --shadow-2: 0 2px 10px rgba(0, 0, 0, 0.1);
+            --hover-overlay: rgba(0, 0, 0, 0.05);
+            --pocket-brand: #ef4056;
+            --pocket-delete-bg: #e74c3c;
+            --pocket-edit: #3498db;
+            --pocket-save: #2ecc71;
+            --pocket-success: #2ecc71;
+            --pocket-error: #e74c3c;
+        }
+        html.dark {
+            --background-1: #18191a;
+            --background-2: #18191a;
+            --card-background-1: #242526;
+            --text-color-1: white;
+            --text-color-2: #b0b3b8;
+            --shadow-1: 0px 0px 8px 0px #282b33;
+            --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.25);
+            --hover-overlay: rgba(255, 255, 255, 0.08);
+            --border-color-1: #3a3b3c; 
+        }
+        html {
+            --border-color-1: #e0e0e0; 
+        }
+
+        body, html {
+            height: 100%;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-2);
+            color: var(--text-color-1);
+            transition: background-color var(--transition-speed-normal), color var(--transition-speed-normal);
+        }
+        body {
+            padding-top: 70px;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* --- App Header --- */
+        .app-header {
+            background-color: var(--card-background-1);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-2);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid var(--border-color-1);
+        }
+        .app-header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-color-1);
+            flex-shrink: 0;
+        }
+        
+        /* --- MOD: Auth Controls in Header --- */
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px; 
+            justify-content: flex-end;
+            flex-grow: 1;
+            position: relative;
+        }
+
+        #auth-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-right: 10px;
+        }
+
+        #auth-status-message {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-color-2);
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Simplified auth buttons */
+        #loginBtn, #logoutBtn {
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 50px;
+            border: 1px solid var(--pocket-brand);
+            background-color: var(--pocket-brand);
+            color: white;
+            cursor: pointer;
+            transition: all var(--transition-speed-fast) ease-out;
+            white-space: nowrap;
+        }
+        #logoutBtn {
+            background-color: transparent;
+            color: var(--pocket-brand);
+            border-color: var(--pocket-brand);
+        }
+        #loginBtn:hover, #logoutBtn:hover {
+            opacity: 0.8;
+        }
+        
+        #logoutBtn { display: none; } /* Hide logout by default */
+        #loginBtn { display: none; } /* Hide login by default */
+        /* --- END: Auth Controls --- */
+        
+
+        .add-item-form {
+            position: relative;
+            margin-top: 8vh;
+            margin-bottom: 8vh;
+        }
+        .add-item-input {
+            font-family: 'Inter', sans-serif;
+            width: 100%;
+            padding: 12px 20px; 
+            border-radius: 12px; 
+            border: 1px solid var(--border-color-1);
+            background-color: var(--card-background-1); 
+            color: var(--text-color-1);
+            font-size: 15px; 
+            line-height: 1.5; 
+            transition: all var(--transition-speed-fast) ease-out;
+            box-shadow: var(--shadow-1); 
+            min-height: 80px; 
+            max-height: 500px;
+            min-width: 1000px;
+            overflow-y: hidden;
+        }
+        .add-item-input:focus {
+            outline: none;
+            border-color: var(--pocket-brand);
+            background-color: var(--card-background-1);
+            box-shadow: 0 0 0 3px rgba(239, 64, 86, 0.3);
+        }
+        .add-item-input::placeholder {
+            color: var(--text-color-2);
+            opacity: 0.8;
+        }
+        .add-item-btn {
+            position: absolute;
+            right: 10px; 
+            bottom: 10px; 
+            width: 36px; 
+            height: 36px; 
+            border-radius: 50%;
+            background-color: var(--pocket-brand);
+            color: white;
+            border: none;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all var(--transition-speed-fast) ease-out;
+            opacity: 0.8;
+        }
+        .add-item-btn:hover {
+            opacity: 1;
+            transform: scale(1.1); 
+        }
+        .add-item-input:focus + .add-item-btn {
+            opacity: 1;
+        }
+        
+        .header-btn { 
+            background-color: transparent;
+            color: var(--text-color-2);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color var(--transition-speed-normal) var(--ease-out-quad), color var(--transition-speed-normal) var(--ease-out-quad);
+            user-select: none;
+            flex-shrink: 0;
+        }
+        .header-btn:hover { 
+            background-color: var(--hover-overlay);
+            color: var(--text-color-1);
+        }
+        .fa-sun { color: #fdd835; }
+        .fa-moon { color: #e0e0e0; }
+
+        .settings-menu {
+            display: none;
+            position: absolute;
+            top: 50px;
+            right: 0;
+            width: 260px;
+            background-color: var(--card-background-1);
+            border-radius: 8px;
+            border: 1px solid var(--border-color-1);
+            box-shadow: var(--shadow-2);
+            z-index: 101;
+            overflow: hidden;
+        }
+        .settings-menu.show {
+            display: block;
+        }
+        .settings-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-color-1);
+            cursor: pointer;
+            transition: background-color var(--transition-speed-fast) var(--ease-out-quad);
+            user-select: none;
+        }
+        .settings-menu-item:hover {
+            background-color: var(--hover-overlay);
+        }
+        .settings-menu-item i.fa-solid {
+            width: 20px;
+            text-align: center;
+            font-size: 16px;
+            color: var(--text-color-2);
+        }
+        .settings-menu-item.toggle-item {
+            justify-content: space-between;
+        }
+        .settings-menu-item .menu-item-label {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .settings-menu-divider {
+            height: 1px;
+            background-color: var(--border-color-1);
+            margin: 4px 0;
+        }
+
+        .month-header {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-color-1);
+            margin-top: 30px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color-1); 
+        }
+        .month-header:first-of-type {
+            margin-top: 0;
+        }
+
+        /* --- Main Content Grid --- */
+        .main-container {
+            max-width: 1100px; 
+            margin: 30px auto;
+            padding: 0 20px;
+            flex-grow: 1; 
+        }
+        
+        /* --- MOD: Auth-related UI --- */
+        #mainContentContainer {
+            display: none; /* Hide main content by default */
+        }
+        
+        #loginPromptMessage {
+            display: block; /* Show by default */
+            font-size: 18px;
+            font-weight: 500;
+            color: var(--text-color-2);
+            text-align: center;
+            margin-top: 10vh;
+            padding: 20px;
+        }
+        /* --- END: Auth-related UI --- */
+        
+
+        .search-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        #searchInput {
+            font-family: 'Inter', sans-serif;
+            width: 100%;
+            padding: 12px 20px 12px 45px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color-1);
+            background-color: transparent;
+            color: var(--text-color-1);
+            font-size: 15px;
+            line-height: 1.5;
+            transition: all var(--transition-speed-fast) ease-out;
+        }
+        #searchInput:focus {
+            outline: none;
+            border-color: var(--pocket-edit);
+        }
+        #searchInput::placeholder {
+            color: var(--text-color-2);
+            opacity: 0.8;
+        }
+        #searchInput::-webkit-search-decoration,
+        #searchInput::-webkit-search-cancel-button,
+        #searchInput::-webkit-search-results-button,
+        #searchInput::-webkit-search-results-decoration {
+            -webkit-appearance:none;
+        }
+        .search-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 16px;
+            color: var(--text-color-2);
+            opacity: 0.7;
+            pointer-events: none;
+        }
+        #searchInput:focus + .search-icon {
+            color: var(--pocket-edit);
+            opacity: 1;
+        }
+        .clear-search-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: none;
+            border: none;
+            color: var(--text-color-2);
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.6;
+            transition: all var(--transition-speed-fast) var(--ease-out-quad);
+        }
+        .clear-search-btn:hover {
+            opacity: 1;
+            background-color: var(--hover-overlay);
+        }
+        
+        .sort-controls-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px; 
+            margin-bottom: 40px;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .sort-options-group,
+        .sort-actions-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .sort-btn {
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 50px;
+            border: 1px solid var(--border-color-1);
+            background-color: var(--card-background-1);
+            color: var(--text-color-2);
+            cursor: pointer;
+            transition: all var(--transition-speed-fast) ease-out;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .sort-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background-color: var(--card-background-1); 
+            color: var(--text-color-2); 
+            border-color: var(--border-color-1); 
+        }
+        .sort-btn:disabled:hover {
+            background-color: var(--card-background-1);
+            color: var(--text-color-2);
+            border-color: var(--border-color-1);
+        }
+        .sort-btn:hover {
+            background-color: var(--hover-overlay);
+            border-color: var(--text-color-2);
+            color: var(--text-color-1);
+        }
+        .sort-btn.active {
+            background-color: var(--pocket-brand);
+            color: white;
+            border-color: var(--pocket-brand);
+        }
+        .sort-btn.download-btn {
+            background-color: transparent;
+            border-color: var(--text-color-2);
+            color: var(--text-color-2);
+        }
+        .sort-btn.download-btn:hover:not(:disabled) { 
+            background-color: var(--text-color-2);
+            color: var(--card-background-1);
+            border-color: var(--text-color-2);
+        }
+        .sort-btn.clear-btn {
+            background-color: transparent;
+            border-color: var(--pocket-delete-bg);
+            color: var(--pocket-delete-bg);
+        }
+        .sort-btn.clear-btn:hover:not(:disabled) { 
+            background-color: var(--pocket-delete-bg);
+            color: white;
+        }
+        .sort-btn.clear-btn.confirm-active {
+            background-color: var(--pocket-delete-bg);
+            color: white;
+        }
+        .sort-btn.clear-btn.confirm-active .btn-text {
+            display: inline;
+        }
+        .sort-btn.clear-btn.confirm-active i {
+            display: none;
+        }
+        .sort-btn .btn-text {
+            margin-left: 6px;
+        }
+        .sort-btn:focus {
+            outline: none;
+        }
+        .sort-btn:focus-visible {
+            outline: 2px solid var(--pocket-brand);
+            outline-offset: 2px;
+        }
+        
+        #pocketGridContainer {
+            display: flex;
+            flex-direction: column;
+            gap: 20px; 
+        }
+
+        /* --- Post Item Styles (Unchanged) --- */
+        .pocket-post-item {
+            background: var(--card-background-1);
+            border-radius: 12px;
+            box-shadow: var(--shadow-1);
+            border: 1px solid var(--border-color-1);
+            transition: all var(--transition-speed-normal) var(--ease-out-quad);
+            opacity: 1;
+            transform: scale(1);
+            overflow: hidden; 
+        }
+        .post-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color-1);
+        }
+        .post-header-logo {
+            font-size: 20px;
+            color: var(--pocket-brand);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .post-header-date {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-color-2);
+            flex-grow: 1;
+            flex-wrap: wrap;
+        }
+        .edited-indicator {
+            font-size: 12px;
+            font-style: italic;
+            color: var(--text-color-2);
+            opacity: 0.8;
+            margin-left: 4px;
+            white-space: nowrap; 
+        }
+        .post-body {
+            padding: 15px;
+        }
+        .item-text {
+            font-size: 16px;
+            line-height: 1.5;
+            color: var(--text-color-1);
+            overflow-wrap: break-word;
+            white-space: pre-wrap; 
+            font-weight: 500;
+        }
+        .edit-textarea {
+            display: none;
+            width: 100%;
+            font-family: 'Inter', sans-serif;
+            font-size: 16px;
+            line-height: 1.5;
+            font-weight: 500;
+            color: var(--text-color-1);
+            background-color: var(--background-2);
+            border: 1px solid var(--border-color-1);
+            border-radius: 8px;
+            padding: 10px;
+            resize: vertical;
+            min-height: 80px;
+            max-height: 300px;
+            overflow-y: auto; 
+        }
+        .edit-textarea:focus {
+            outline: none;
+            border-color: var(--pocket-edit);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.3);
+        }
+        .pocket-post-item.is-editing .item-text {
+            display: none; 
+        }
+        .pocket-post-item.is-editing .edit-textarea {
+            display: block; 
+        }
+        .pocket-post-item.is-editing .item-search-btn,
+        .pocket-post-item.is-editing .item-delete-btn {
+            display: none; 
+        }
+        .post-footer {
+            padding: 8px 15px;
+            border-top: 1px solid var(--border-color-1);
+        }
+        .item-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px; 
+            flex-shrink: 0; 
+        }
+        .item-action-btn {
+            position: relative;
+            top: auto;
+            right: auto;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: none;
+            border: none;
+            color: var(--text-color-2);
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.6;
+            transition: all var(--transition-speed-fast) var(--ease-out-quad);
+            flex-shrink: 0;
+            text-decoration: none; 
+        }
+        .pocket-post-item:hover .item-action-btn {
+            opacity: 1; 
+        }
+        .item-action-btn:hover {
+            background-color: var(--hover-overlay);
+        }
+        .item-search-btn:hover {
+            color: #4285F4;
+        }
+        .item-edit-btn:hover {
+            color: var(--pocket-edit);
+        }
+        .pocket-post-item.is-editing .item-edit-btn {
+            color: var(--pocket-save); 
+        }
+        .pocket-post-item.is-editing .item-edit-btn:hover {
+            color: var(--pocket-save); 
+        }
+        .item-delete-btn:hover {
+            color: var(--pocket-delete-bg);
+        }
+        .item-edit-btn .fa-save {
+            display: none;
+        }
+        .pocket-post-item.is-editing .item-edit-btn .fa-save {
+            display: inline-block;
+        }
+        .pocket-post-item.is-editing .item-edit-btn .fa-pencil {
+            display: none;
+        }
+        .pocket-post-item.pocket-item-fade-out {
+            opacity: 0;
+            transform: scale(0.95); 
+        }
+        /* --- END: Post Styles --- */
+
+        .pocket-empty-message {
+            font-size: 18px;
+            color: var(--text-color-2);
+            text-align: center;
+            margin-top: 50px;
+        }
+
+        /* --- Notification Toast (Unchanged) --- */
+        .notification-toast {
+            position: fixed;
+            bottom: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border-radius: 8px;
+            background-color: var(--pocket-success);
+            color: white;
+            font-weight: 500;
+            font-size: 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            transition: bottom 0.4s var(--ease-out-quad);
+            user-select: none;
+        }
+        .notification-toast.show {
+            bottom: 30px;
+        }
+        .notification-toast.error {
+            background-color: var(--pocket-error);
+        }
+
+        /* --- Modal Styles (Base) --- */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1001;
+            opacity: 0;
+            transition: opacity var(--transition-speed-fast) ease-out;
+        }
+        .modal-overlay.show {
+            display: block;
+            opacity: 1;
+        }
+        .modal-content {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: var(--card-background-1);
+            color: var(--text-color-1);
+            border-radius: 12px;
+            box-shadow: var(--shadow-2);
+            z-index: 1002;
+            width: 90%;
+            max-width: 450px;
+            padding: 24px 30px;
+            display: none;
+            opacity: 0;
+            transform: translate(-50%, -60%);
+            transition: opacity var(--transition-speed-fast) ease-out, transform var(--transition-speed-fast) ease-out;
+        }
+        .modal-overlay.show .modal-content {
+            display: block;
+            opacity: 1;
+            transform: translate(-50%, -50%);
+        }
+        .modal-content h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .modal-content p {
+            font-size: 15px;
+            color: var(--text-color-2);
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        .modal-form-group {
+            margin-bottom: 20px;
+        }
+        .modal-form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--text-color-1);
+        }
+        .modal-input {
+            width: 100%;
+            padding: 10px 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            border: 1px solid var(--border-color-1);
+            border-radius: 8px;
+            background-color: var(--background-2);
+            color: var(--text-color-1);
+            transition: all var(--transition-speed-fast) ease-out;
+        }
+        .modal-input:focus {
+            outline: none;
+            border-color: var(--pocket-brand);
+            box-shadow: 0 0 0 3px rgba(239, 64, 86, 0.3);
+        }
+        .modal-form-group.checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .modal-checkbox {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            accent-color: var(--pocket-brand);
+        }
+        .modal-form-group.checkbox-group label {
+            font-size: 13px;
+            font-weight: 400;
+            color: var(--text-color-2);
+            margin-bottom: 0;
+            line-height: 1.4;
+        }
+        .terms-link {
+            color: var(--pocket-brand);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .terms-link:hover {
+            text-decoration: underline;
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .modal-btn {
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: all var(--transition-speed-fast) ease-out;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-btn.cancel-btn {
+            background-color: var(--background-2);
+            color: var(--text-color-1);
+            border: 1px solid var(--border-color-1);
+        }
+        .modal-btn.cancel-btn:hover {
+            background-color: var(--hover-overlay);
+        }
+        .modal-btn.send-btn {
+            background-color: var(--pocket-brand);
+            color: white;
+            min-width: 80px;
+        }
+        .modal-btn.send-btn:hover {
+            opacity: 0.85;
+        }
+        .modal-btn.send-btn:disabled {
+            background-color: var(--text-color-2);
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .modal-btn.send-btn:disabled:hover {
+            opacity: 0.5;
+        }
+        .modal-btn .btn-text {
+            display: inline;
+        }
+        .modal-btn .btn-spinner {
+            display: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: modal-spinner 0.6s linear infinite;
+        }
+        .modal-btn.loading .btn-text {
+            display: none;
+        }
+        .modal-btn.loading .btn-spinner {
+            display: block;
+        }
+        @keyframes modal-spinner {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* --- REMOVED: Auth Modal Specific Styles --- */
+
+        /* --- Footer (Unchanged) --- */
+        .app-footer {
+            text-align: left;
+            padding: 20px 30px;
+            color: var(--text-color-2);
+            font-size: 14px;
+            flex-shrink: 0; 
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
+            border-top: 1px solid var(--border-color-1);
+            background-color: var(--card-background-1);
+            margin-top: 30px; 
+        }
+        .atikle {
+            font-family: "Roboto", sans-serif;
+        }
+        .atikle-multicolor {
+            font-family: "Roboto", sans-serif;
+            font-weight: 600;
+            font-size: 40px;
+            background: linear-gradient(90.1deg, rgb(255, 85, 85) 0.1%, rgb(85, 85, 255) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: transparent;
+            display: inline-block; 
+        }
+        .footer-link {
+            font-family: "Roboto", sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-color-2);
+            text-decoration: none;
+            transition: color var(--transition-speed-fast) var(--ease-out-quad);
+        }
+        .footer-link:hover {
+            color: var(--pocket-brand);
+            text-decoration: underline;
+        }
+        
+        /* --- Responsive (Unchanged) --- */
+        @media (max-width: 640px) {
+            body { padding-top: 70px; }
+            .app-header {
+                padding: 15px 20px;
+                gap: 10px;
+                flex-wrap: nowrap;
+            }
+            .app-header h1 {
+                font-size: 20px;
+            }
+            #auth-status-message {
+                display: none;
+            }
+            #loginBtn, #logoutBtn {
+                padding: 6px 12px;
+                font-size: 13px;
+            }
+            #auth-controls {
+                margin-right: 0;
+            }
+            .header-controls { justify-content: flex-end; }
+            .app-header h1 { flex-grow: 0; }
+            .main-container { margin: 20px auto; }
+            .add-item-input {
+                min-width:  90vw;
+                max-width:  90vw;
+                font-size: 14px;
+                padding: 10px 16px; 
+                min-height: 70px; 
+            }
+            .add-item-btn {
+                width: 32px;
+                height: 32px;
+                right: 8px; 
+                bottom: 8px; 
+            }
+            #searchInput {
+                font-size: 14px;
+                padding: 10px 16px 10px 40px;
+            }
+            .search-icon {
+                left: 12px;
+                font-size: 14px;
+            }
+            .clear-search-btn {
+                right: 6px;
+                width: 30px;
+                height: 30px;
+            }
+            .sort-controls-container { gap: 15px; }
+            .sort-options-group {
+                gap: 6px;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                flex-shrink: 1; 
+                min-width: 0; 
+                -ms-overflow-style: none;  
+                scrollbar-width: none;  
+            }
+            .sort-options-group::-webkit-scrollbar { display: none; }
+            .sort-actions-group {
+                gap: 6px;
+                flex-shrink: 0; 
+            }
+            .sort-btn {
+                font-size: 13px;
+                padding: 6px 12px;
+            }
+            .sort-btn.download-btn .btn-text,
+            .sort-btn.clear-btn .btn-text {
+                display: none;
+            }
+            .sort-btn.download-btn,
+            .sort-btn.clear-btn {
+                padding: 6px 12px; 
+            }
+            .sort-btn.clear-btn.confirm-active {
+                padding: 6px 12px;
+            }
+            .sort-btn.clear-btn.confirm-active .btn-text {
+                display: inline;
+            }
+            #pocketGridContainer { gap: 15px; }
+            .item-action-btn { opacity: 0.8; }
+            .item-action-btn:hover { background-color: var(--hover-overlay); }
+            .notification-toast.show {
+                bottom: 20px;
+                width: 90vw;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="app-header">
+        <h1>
+            <i class="fa-solid fa-bookmark" style="color: var(--pocket-brand);" aria-hidden="true"></i>
+            My Pocket
+        </h1>
+        
+        <div class="header-controls">
+            <!-- MOD: Auth Controls -->
+            <div id="auth-controls">
+                <span id="auth-status-message">Loading...</span>
+                <!-- This login button is a fallback, but will be hidden by JS -->
+                <button id="loginBtn" class="auth-btn">Log In</button>
+                <button id="logoutBtn" class="auth-btn">Log Out</button>
+            </div>
+            
+            <button id="settingsBtn" class="header-btn" title="Settings" aria-label="Open settings menu" aria-haspopup="true" aria-expanded="false">
+                <i class="fa-solid fa-cog" aria-hidden="true"></i>
+            </button>
+            
+            <div class="settings-menu" id="settingsMenu" role="menu" aria-labelledby="settingsBtn">
+                <div class="settings-menu-item toggle-item" id="menuDarkModeToggle" role="menuitem" tabindex="0">
+                    <div class="menu-item-label">
+                        <i class="fa-solid fa-moon" id="menuThemeIcon" aria-hidden="true"></i>
+                        <span id="menuThemeText">Dark Mode</span>
+                    </div>
+                    <span class="visually-hidden" id="menuThemeState">Off</span>
+                </div>
+                <div class="settings-menu-divider"></div>
+                <div class="settings-menu-item" id="menuDownloadPdfBtn" role="menuitem" tabindex="0">
+                    <i class="fa-solid fa-file-pdf" aria-hidden="true"></i>
+                    Download PDF
+                </div>
+                <div class="settings-menu-item" id="menuEmailItemsBtn" role="menuitem" tabindex="0">
+                    <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
+                    Email My Items
+                </div>
+                <div class="settings-menu-divider"></div>
+                <div class="settings-menu-item" id="jsonImportBtn" role="menuitem" tabindex="0">
+                    <i class="fa-solid fa-upload" aria-hidden="true"></i>
+                    Import backup
+                </div>
+                <div class="settings-menu-item" id="jsonExportBtn" role="menuitem" tabindex="0">
+                    <i class="fa-solid fa-download" aria-hidden="true"></i>
+                    Export backup
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <!-- MOD: Login Prompt -->
+        <div id="loginPromptMessage">
+            Connecting to login service...
+        </div>
+        
+        <!-- MOD: Main Content Wrapper -->
+        <div id="mainContentContainer">
+            <form class="add-item-form" id="addItemForm">
+                <label for="addItemInput" class="visually-hidden">Add new item</label>
+                <textarea id="addItemInput" class="add-item-input" placeholder="Add item to My Pocket" rows="3"></textarea>
+                <button type="submit" class="add-item-btn" title="Save Item" aria-label="Save Item">
+                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                </button>
+            </form>
+
+            <div class="search-container" role="search">
+                <i class="fa-solid fa-search search-icon" aria-hidden="true"></i>
+                <label for="searchInput" class="visually-hidden">Search items</label>
+                <input type="search" id="searchInput" placeholder="Search saved items" aria-label="Search saved items">
+                <button class="clear-search-btn" id="clearSearchBtn" title="Clear search" aria-label="Clear search" style="display: none;">
+                    <i class="fa-solid fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <div class="sort-controls-container" role="toolbar" aria-label="Page controls">
+                <div class="sort-options-group" role="group" aria-label="Sort items">
+                    <button class="sort-btn active" data-sort="latest" aria-pressed="true">Latest</button>
+                    <button class="sort-btn" data-sort="oldest" aria-pressed="false">Oldest</button>
+                </div>
+                <div class="sort-actions-group" role="group" aria-label="Page actions">
+                    <button class="sort-btn download-btn" id="downloadPdfBtn">
+                        <i class="fa-solid fa-download" aria-hidden="true"></i>
+                        <span class="btn-text">Download</span>
+                    </button>
+                    <button class="sort-btn clear-btn" id="clearAllBtn" data-default-text="Clear All">
+                        <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                        <span class="btn-text">Clear All</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="pocketGridContainer">
+                <!-- Saved items will be dynamically added here from Firestore -->
+            </div>
+        </div>
+    </div>
+    
+    <footer class="app-footer">
+        <p class="atikle-multicolor">atikle</p>
+        <a href="https://atikle.github.io/terms/mypocket" class="footer-link" id="termsLink">Terms & Conditions</a>
+    </footer>
+
+    <!-- Hidden file input for JSON import (Unchanged) -->
+    <input type="file" id="jsonImportInput" accept=".json" class="visually-hidden">
+
+    <!-- Notification Toast element (Unchanged) -->
+    <div class="notification-toast" id="notificationToast"></div>
+
+    <!-- Email Modal (Unchanged) -->
+    <div class="modal-overlay" id="emailModalOverlay">
+        <div class="modal-content" id="emailModalContent" role="dialog" aria-labelledby="emailModalTitle" aria-modal="true">
+            <h3 id="emailModalTitle">Email Your Pocket Items</h3>
+            <p>Enter your email address to receive a copy of all your saved items.</p>
+            <form id="emailModalForm">
+                <div class="modal-form-group">
+                    <label for="emailModalInput">Email Address</label>
+                    <input type="email" id="emailModalInput" class="modal-input" placeholder="you@example.com" required>
+                </div>
+                <div class="modal-form-group checkbox-group">
+                    <input type="checkbox" id="emailTermsCheckbox" class="modal-checkbox">
+                    <label for="emailTermsCheckbox">
+                        I agree to the 
+                        <a href="https://atikle.github.io/terms/mypocket" target="_blank" rel="noopener noreferrer" class="terms-link">
+                            Terms & Privacy Policy
+                        </a>
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="modal-btn cancel-btn" id="emailModalCancelBtn">Cancel</button>
+                    <button type="submit" class="modal-btn send-btn" id="emailModalSendBtn">
+                        <span class="btn-text">Send</span>
+                        <span class="btn-spinner"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- REMOVED: Auth Modal (for Passwordless Email Link) -->
+
+</body>
+</html>
