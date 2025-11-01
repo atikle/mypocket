@@ -201,7 +201,7 @@
 
                   } else {
                       // --- User is LOGGED OUT ---
-                      console.log('User is signed out. Redirecting to login.html');
+                      console.log('User is signed out. Redirecting to atikle Single Sign-On');
                       userId = null;
                       
                       // Detach old listener
@@ -212,7 +212,8 @@
 
                       // *** REDIRECT TO LOGIN PAGE ***
                       // FIX: Use a valid relative URL path starting with './'
-                      window.location.href = './login.html';
+                      window.location.href = 'https://atikle.github.io/account/v2.0.0';
+                    //   window.location.href = './login.html';
 
                       // The code below will likely not run, but it's good practice
                       // to reset the UI in case the redirect fails.
