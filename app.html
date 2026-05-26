@@ -146,19 +146,19 @@
       
       // --- Firebase Initialization & Auth Handling ---
       async function initFirebase() {
-          appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+          // If you want this to save under the atikle ecosystem database structure, 
+          // you might want to change 'default-app-id' to 'atikle-v1' here as well:
+          appId = typeof __app_id !== 'undefined' ? __app_id : 'atikle-v1'; 
           
-          // User's Firebase Config:
           const firebaseConfig = {
-            apiKey: "AIzaSyCiAI1AScqKoH7O6fJh4dCiwCUC2BUxd0U",
-            authDomain: "my-pocket-e547b.firebaseapp.com",
-            projectId: "my-pocket-e547b",
-            storageBucket: "my-pocket-e547b.firebasestorage.app",
-            messagingSenderId: "361442982929",
-            appId: "1:361442982929:web:7866e10593e54c75cec5b0",
-            measurementId: "G-X8JGLLE2PP"
+            apiKey: "AIzaSyCFBRUc8afjIrOtet57sltb8M1xrVR5R3c",
+            authDomain: "atikle-web.firebaseapp.com",
+            projectId: "atikle-web",
+            storageBucket: "atikle-web.firebasestorage.app",
+            messagingSenderId: "63074656402",
+            appId: "1:63074656402:web:0af9a3d0bba7cd7dc0464b",
+            measurementId: "G-38WD0DDG8E"
           };
-          // END OF PASTED CONFIG
 
           if (!firebaseConfig.apiKey || !firebaseConfig.authDomain) {
               console.error("Firebase config is missing API key or Auth Domain.");
@@ -2149,8 +2149,6 @@ _          };
             </form>
         </div>
     </div>
-    
-    <!-- REMOVED: Auth Modal (for Passwordless Email Link) -->
 
 </body>
 </html>
