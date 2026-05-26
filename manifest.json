@@ -1,11 +1,11 @@
 {
   "name": "MyPocket",
   "short_name": "MyPocket",
-  "start_url": "./app.html",
+  "start_url": "./app",
   "display": "standalone",
   "scope": "./",
-  "background_color": "black",
-  "theme_color": "#242526",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "description": "A personal space to save links, notes, and ideas, sorted and grouped by date.",
   "icons": [
     {
@@ -25,7 +25,7 @@
       "short_name": "New Item",
       "description": "Quickly add a new note or link",
       "url": "./app.html?action=new",
-      "icons": [{ "src": "https://ui-avatars.com/api/?name=N&background=ef4056&color=fff&size=192", "sizes": "192x192", "type": "image/png" }]
+      "icons": [{ "src": "./assets/icons/new-task-icon.svg", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }
