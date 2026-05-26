@@ -54,14 +54,13 @@
       // --- Storage Keys for UI Preferences ---
       const POCKET_SORT_KEY = "pocketSortPreference";
       const POCKET_SEARCH_KEY = "pocketSearchTerm";
-      const POCKET_TERMS_ACCEPTED_KEY = "pocketTermsAccepted";
       const POCKET_THEME_KEY = "theme";
 
       // --- DOM Elements ---
       const pocketGridContainer = document.getElementById('pocketGridContainer');
       const sortControlsContainer = document.querySelector('.sort-controls-container');
       const sortOptionsGroup = document.querySelector('.sort-options-group');
-      const clearAllBtn = document.getElementById('clearAllBtn');
+      const emailListBtn = document.getElementById('emailListBtn');
       const downloadPdfBtn = document.getElementById('downloadPdfBtn');
       const addItemForm = document.getElementById('addItemForm');
       const addItemInput = document.getElementById('addItemInput');
@@ -76,14 +75,7 @@
       const menuThemeState = document.getElementById('menuThemeState');
       
       const menuDownloadPdfBtn = document.getElementById('menuDownloadPdfBtn');
-      const menuEmailItemsBtn = document.getElementById('menuEmailItemsBtn');
-
-      const emailModalOverlay = document.getElementById('emailModalOverlay');
-      const emailModalForm = document.getElementById('emailModalForm');
-      const emailModalInput = document.getElementById('emailModalInput');
-      const emailTermsCheckbox = document.getElementById('emailTermsCheckbox');
-      const emailModalCancelBtn = document.getElementById('emailModalCancelBtn');
-      const emailModalSendBtn = document.getElementById('emailModalSendBtn');
+      const menuClearAllBtn = document.getElementById('menuClearAllBtn');
 
       // Account Modal DOM
       const userProfileBtn = document.getElementById('userProfileBtn');
@@ -205,7 +197,6 @@
                       // Load UI preferences
                       searchInput.value = localStorage.getItem(POCKET_SEARCH_KEY) || '';
                       toggleClearSearchBtn();
-                      validateEmailModal();
 
                       // Setup REAL-TIME Firestore listener
                       await setupFirestoreListener(appId, userId);
@@ -360,15 +351,24 @@
           }
       }
       
-      clearAllBtn.addEventListener('click', async () => {
+      // --- Clear All Logic (In Settings Menu) ---
+      let clearAllTimeout;
+
+      function resetMenuClearAllBtn() {
+          menuClearAllBtn.innerHTML = '<i class="fa-solid fa-trash" aria-hidden="true"></i> Clear All Items';
+          menuClearAllBtn.classList.remove('confirm-active');
+      }
+
+      menuClearAllBtn.addEventListener('click', async (e) => {
+          e.stopPropagation(); 
           if (!userId) {
               showNotification("You must be logged in to clear items.", true);
+              closeSettingsMenu();
               return;
           }
           
-          if (clearAllBtn.classList.contains('confirm-active')) {
-              clearAllBtn.disabled = true;
-              clearAllBtn.querySelector('.btn-text').textContent = 'Clearing...';
+          if (menuClearAllBtn.classList.contains('confirm-active')) {
+              menuClearAllBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Clearing...';
 
               try {
                   const itemsColRef = collection(db, 'artifacts', appId, 'users', userId, 'mypocket');
@@ -382,20 +382,25 @@
                   
                   await Promise.all(deletePromises);
                   
-                  resetClearAllBtn();
-                  clearAllBtn.disabled = false;
+                  resetMenuClearAllBtn();
+                  closeSettingsMenu();
+                  showNotification("All items have been cleared.", false);
 
               } catch (error) {
                   console.error("Error clearing all items:", error);
                   showNotification("Error: Could not clear items.", true);
-                  resetClearAllBtn();
-                  clearAllBtn.disabled = false;
+                  resetMenuClearAllBtn();
               }
 
           } else {
-              clearAllBtn.classList.add('confirm-active');
-              clearAllBtn.querySelector('.btn-text').textContent = 'Are you sure?';
+              menuClearAllBtn.classList.add('confirm-active');
+              menuClearAllBtn.innerHTML = '<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Are you sure?';
               cancelAllEdits();
+              
+              clearTimeout(clearAllTimeout);
+              clearAllTimeout = setTimeout(() => {
+                  resetMenuClearAllBtn();
+              }, 3000);
           }
       });
 
@@ -403,11 +408,13 @@
       function closeSettingsMenu() {
           settingsMenu.classList.remove('show');
           settingsBtn.setAttribute('aria-expanded', 'false');
+          resetMenuClearAllBtn();
       }
       settingsBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           const isShown = settingsMenu.classList.toggle('show');
           settingsBtn.setAttribute('aria-expanded', isShown);
+          if(!isShown) resetMenuClearAllBtn();
       });
       window.addEventListener('click', (e) => {
           if (!settingsMenu.contains(e.target) && !settingsBtn.contains(e.target)) {
@@ -449,62 +456,32 @@
           }
       });
       
-      // --- Email Modal Logic ---
-      function validateEmailModal() {
-          const isEmailValid = emailModalInput.value.includes('@') && emailModalInput.value.length > 3;
-          const isTermsAccepted = emailTermsCheckbox.checked;
-          emailModalSendBtn.disabled = !(isEmailValid && isTermsAccepted);
-      }
-      emailModalInput.addEventListener('input', validateEmailModal);
-      emailTermsCheckbox.addEventListener('change', validateEmailModal);
+      // --- Direct Email Items Logic ---
+      async function emailItemsDirectly() {
+          if (!auth || !auth.currentUser || !auth.currentUser.email) {
+              showNotification("Error: No email address linked to your account.", true);
+              return;
+          }
 
-      function showEmailModal() {
           const items = currentPocketItems;
           if (items.length === 0) {
               showNotification("Your pocket is empty. Add some items first!", true);
               return;
           }
-          const termsAccepted = localStorage.getItem(POCKET_TERMS_ACCEPTED_KEY) === 'true';
-          emailTermsCheckbox.checked = termsAccepted;
-          emailModalOverlay.classList.add('show');
-          emailModalInput.focus();
-          closeSettingsMenu();
-          validateEmailModal();
-      }
-      function hideEmailModal() {
-          emailModalOverlay.classList.remove('show');
-          emailModalInput.value = '';
-          emailModalSendBtn.classList.remove('loading');
-          validateEmailModal();
-      }
-      menuEmailItemsBtn.addEventListener('click', showEmailModal);
-      menuEmailItemsBtn.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') e.preventDefault(); showEmailModal();
-      });
-      emailModalCancelBtn.addEventListener('click', hideEmailModal);
-      emailModalOverlay.addEventListener('click', (e) => {
-          if (e.target === emailModalOverlay) {
-              hideEmailModal();
-          }
-      });
-      
-      emailModalForm.addEventListener('submit', async (e) => {
-          e.preventDefault();
+          
+          const email = auth.currentUser.email;
           const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyKVRgkVy0IOu-WdMKNFOwUA-uTd7TqvubWm0rlJPBDoTdby3-8KkBsWsDFiWPan7PHaA/exec';
-          if (!emailTermsCheckbox.checked || !emailModalInput.value.includes('@')) {
-              showNotification("Please enter a valid email and accept the terms.", true);
-              return;
-          }
-          const email = emailModalInput.value;
+          
           if (APPS_SCRIPT_URL.includes('PASTE_YOUR_DEPLOYED_WEB_APP_URL_HERE')) {
               showNotification("Setup incomplete. Please update APPS_SCRIPT_URL in the HTML.", true);
-              hideEmailModal();
               return;
           }
-          emailModalSendBtn.classList.add('loading');
-          localStorage.setItem(POCKET_TERMS_ACCEPTED_KEY, 'true');
+
+          const originalText = emailListBtn.querySelector('.btn-text').textContent;
+          emailListBtn.querySelector('.btn-text').textContent = 'Sending...';
+          emailListBtn.disabled = true;
+
           try {
-              const items = currentPocketItems;
               const payloadItems = items.map(item => ({
                   text: item.text,
                   dateAdded: item.dateAdded,
@@ -514,20 +491,24 @@
                   email: email,
                   items: payloadItems
               };
+              
               await fetch(APPS_SCRIPT_URL, {
                   method: "POST",
                   headers: { "Content-Type": "text/plain" },
                   body: JSON.stringify(payload),
                   mode: 'no-cors'
               });
-              showNotification(`Sending items to ${email}...`);
-              hideEmailModal();
+              showNotification(`Items successfully sent to ${email}`);
           } catch (error) {
-              console.log('Apps Script fetch initiated (errors are expected in no-cors mode):', error);
-              showNotification(`Sending items to ${email}...`);
-              hideEmailModal();
+              console.log('Apps Script fetch initiated:', error);
+              showNotification(`Items successfully sent to ${email}`);
+          } finally {
+              emailListBtn.querySelector('.btn-text').textContent = originalText;
+              emailListBtn.disabled = false;
           }
-      });
+      }
+
+      emailListBtn.addEventListener('click', emailItemsDirectly);
 
       // --- Sort Button Logic ---
       sortControlsContainer.addEventListener('click', (e) => {
@@ -545,16 +526,6 @@
           localStorage.setItem(POCKET_SORT_KEY, sortValue);
           cancelAllEdits();
           renderPocketGrid(currentPocketItems);
-      });
-
-      function resetClearAllBtn() {
-          clearAllBtn.classList.remove('confirm-active');
-          clearAllBtn.querySelector('.btn-text').textContent = clearAllBtn.dataset.defaultText;
-      }
-      clearAllBtn.addEventListener('mouseleave', () => {
-          if(clearAllBtn.classList.contains('confirm-active')) {
-              setTimeout(resetClearAllBtn, 2000); 
-          }
       });
       
       function getSortedItems(items) {
@@ -733,18 +704,21 @@
 
             if (isPocketEmpty) {
                 pocketGridContainer.innerHTML = '<p class="pocket-empty-message">You have not saved anything yet</p>';
-                clearAllBtn.style.display = 'none'; 
-                clearAllBtn.setAttribute('aria-disabled', 'true');
+                emailListBtn.disabled = true;
+                emailListBtn.setAttribute('aria-disabled', 'true');
                 downloadPdfBtn.disabled = true;
                 downloadPdfBtn.setAttribute('aria-disabled', 'true');
+                menuClearAllBtn.style.opacity = '0.5';
+                menuClearAllBtn.style.pointerEvents = 'none';
                 return;
             }
             
-            clearAllBtn.style.display = ''; 
-            clearAllBtn.setAttribute('aria-disabled', 'false');
+            menuClearAllBtn.style.opacity = '1';
+            menuClearAllBtn.style.pointerEvents = 'auto';
             downloadPdfBtn.disabled = filteredItems.length === 0;
             downloadPdfBtn.setAttribute('aria-disabled', filteredItems.length === 0);
-            resetClearAllBtn(); 
+            emailListBtn.disabled = false;
+            emailListBtn.setAttribute('aria-disabled', 'false');
             
             if (filteredItems.length === 0 && searchTerm) {
                 const messageP = document.createElement('p');
@@ -1234,7 +1208,7 @@
             width: 20px;
             text-align: center;
             font-size: 16px;
-            color: var(--text-color-2);
+            color: inherit;
         }
         .settings-menu-item.toggle-item {
             justify-content: space-between;
@@ -1248,6 +1222,14 @@
             height: 1px;
             background-color: var(--border-color-1);
             margin: 4px 0;
+        }
+
+        #menuClearAllBtn {
+            color: var(--pocket-error);
+        }
+        #menuClearAllBtn.confirm-active {
+            background-color: var(--pocket-error);
+            color: white;
         }
 
         .month-header {
@@ -1414,25 +1396,17 @@
             color: var(--card-background-1);
             border-color: var(--text-color-2);
         }
-        .sort-btn.clear-btn {
+        
+        .sort-btn.email-btn {
             background-color: transparent;
-            border-color: var(--pocket-delete-bg);
-            color: var(--pocket-delete-bg);
+            border-color: var(--pocket-edit);
+            color: var(--pocket-edit);
         }
-        .sort-btn.clear-btn:hover:not(:disabled) { 
-            background-color: var(--pocket-delete-bg);
+        .sort-btn.email-btn:hover:not(:disabled) {
+            background-color: var(--pocket-edit);
             color: white;
         }
-        .sort-btn.clear-btn.confirm-active {
-            background-color: var(--pocket-delete-bg);
-            color: white;
-        }
-        .sort-btn.clear-btn.confirm-active .btn-text {
-            display: inline;
-        }
-        .sort-btn.clear-btn.confirm-active i {
-            display: none;
-        }
+
         .sort-btn .btn-text {
             margin-left: 6px;
         }
@@ -1669,75 +1643,6 @@
             opacity: 1;
             transform: translate(-50%, -50%);
         }
-        .modal-content h3 {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 10px;
-        }
-        .modal-content p {
-            font-size: 15px;
-            color: var(--text-color-2);
-            margin-bottom: 20px;
-            line-height: 1.5;
-        }
-        .modal-form-group {
-            margin-bottom: 20px;
-        }
-        .modal-form-group label {
-            display: block;
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 8px;
-            color: var(--text-color-1);
-        }
-        .modal-input {
-            width: 100%;
-            padding: 10px 14px;
-            font-family: 'Inter', sans-serif;
-            font-size: 15px;
-            border: 1px solid var(--border-color-1);
-            border-radius: 8px;
-            background-color: var(--background-2);
-            color: var(--text-color-1);
-            transition: all var(--transition-speed-fast) ease-out;
-        }
-        .modal-input:focus {
-            outline: none;
-            border-color: var(--pocket-brand);
-            box-shadow: 0 0 0 3px rgba(239, 64, 86, 0.3);
-        }
-        .modal-form-group.checkbox-group {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .modal-checkbox {
-            width: 16px;
-            height: 16px;
-            flex-shrink: 0;
-            accent-color: var(--pocket-brand);
-        }
-        .modal-form-group.checkbox-group label {
-            font-size: 13px;
-            font-weight: 400;
-            color: var(--text-color-2);
-            margin-bottom: 0;
-            line-height: 1.4;
-        }
-        .terms-link {
-            color: var(--pocket-brand);
-            text-decoration: none;
-            font-weight: 500;
-        }
-        .terms-link:hover {
-            text-decoration: underline;
-        }
-        .modal-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-        }
         .modal-btn {
             font-family: 'Inter', sans-serif;
             font-size: 15px;
@@ -1750,51 +1655,6 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-        }
-        .modal-btn.cancel-btn {
-            background-color: var(--background-2);
-            color: var(--text-color-1);
-            border: 1px solid var(--border-color-1);
-        }
-        .modal-btn.cancel-btn:hover {
-            background-color: var(--hover-overlay);
-        }
-        .modal-btn.send-btn {
-            background-color: var(--pocket-brand);
-            color: white;
-            min-width: 80px;
-        }
-        .modal-btn.send-btn:hover {
-            opacity: 0.85;
-        }
-        .modal-btn.send-btn:disabled {
-            background-color: var(--text-color-2);
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        .modal-btn.send-btn:disabled:hover {
-            opacity: 0.5;
-        }
-        .modal-btn .btn-text {
-            display: inline;
-        }
-        .modal-btn .btn-spinner {
-            display: none;
-            width: 18px;
-            height: 18px;
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: modal-spinner 0.6s linear infinite;
-        }
-        .modal-btn.loading .btn-text {
-            display: none;
-        }
-        .modal-btn.loading .btn-spinner {
-            display: block;
-        }
-        @keyframes modal-spinner {
-            to { transform: rotate(360deg); }
         }
 
         /* --- Account Modal Styles --- */
@@ -1976,18 +1836,12 @@
                 padding: 6px 12px;
             }
             .sort-btn.download-btn .btn-text,
-            .sort-btn.clear-btn .btn-text {
+            .sort-btn.email-btn .btn-text {
                 display: none;
             }
             .sort-btn.download-btn,
-            .sort-btn.clear-btn {
+            .sort-btn.email-btn {
                 padding: 6px 12px; 
-            }
-            .sort-btn.clear-btn.confirm-active {
-                padding: 6px 12px;
-            }
-            .sort-btn.clear-btn.confirm-active .btn-text {
-                display: inline;
             }
             #pocketGridContainer { gap: 15px; }
             .item-action-btn { opacity: 0.8; }
@@ -2033,9 +1887,10 @@
                     <i class="fa-solid fa-file-pdf" aria-hidden="true"></i>
                     Download PDF
                 </div>
-                <div class="settings-menu-item" id="menuEmailItemsBtn" role="menuitem" tabindex="0">
-                    <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
-                    Email My Items
+                <div class="settings-menu-divider"></div>
+                <div class="settings-menu-item" id="menuClearAllBtn" role="menuitem" tabindex="0">
+                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                    Clear All Items
                 </div>
             </div>
         </div>
@@ -2074,9 +1929,9 @@
                         <i class="fa-solid fa-download" aria-hidden="true"></i>
                         <span class="btn-text">Download</span>
                     </button>
-                    <button class="sort-btn clear-btn" id="clearAllBtn" data-default-text="Clear All">
-                        <i class="fa-solid fa-trash" aria-hidden="true"></i>
-                        <span class="btn-text">Clear All</span>
+                    <button class="sort-btn email-btn" id="emailListBtn">
+                        <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
+                        <span class="btn-text">Email</span>
                     </button>
                 </div>
             </div>
@@ -2092,35 +1947,6 @@
     </footer>
 
     <div class="notification-toast" id="notificationToast"></div>
-
-    <div class="modal-overlay" id="emailModalOverlay">
-        <div class="modal-content" id="emailModalContent" role="dialog" aria-labelledby="emailModalTitle" aria-modal="true">
-            <h3 id="emailModalTitle">Email Your Pocket Items</h3>
-            <p>Enter your email address to receive a copy of all your saved items.</p>
-            <form id="emailModalForm">
-                <div class="modal-form-group">
-                    <label for="emailModalInput">Email Address</label>
-                    <input type="email" id="emailModalInput" class="modal-input" placeholder="you@example.com" required>
-                </div>
-                <div class="modal-form-group checkbox-group">
-                    <input type="checkbox" id="emailTermsCheckbox" class="modal-checkbox">
-                    <label for="emailTermsCheckbox">
-                        I agree to the 
-                        <a href="https://atikle.github.io/terms/mypocket" target="_blank" rel="noopener noreferrer" class="terms-link">
-                            Terms & Privacy Policy
-                        </a>
-                    </label>
-                </div>
-                <div class="modal-actions">
-                    <button type="button" class="modal-btn cancel-btn" id="emailModalCancelBtn">Cancel</button>
-                    <button type="submit" class="modal-btn send-btn" id="emailModalSendBtn">
-                        <span class="btn-text">Send</span>
-                        <span class="btn-spinner"></span>
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
 
     <div class="modal-overlay" id="accountModalOverlay">
         <div class="modal-content account-modal" id="accountModalContent" role="dialog" aria-modal="true">
