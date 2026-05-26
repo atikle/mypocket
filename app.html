@@ -5,11 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Pocket</title>
     
-    <!-- SEO and Accessibility -->
     <meta name="description" content="My Pocket - A personal space to save links, notes, and ideas, sorted and grouped by date.">
     <meta name="robots" content="index, follow">
 
-    <!-- Favicon (inline SVG of the bookmark logo) -->
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512' fill='%23ef4056'%3E%3Cpath d='M0 48C0 21.5 21.5 0 48 0l0 48V441.4l130.1-92.9c8.3-5.9 19.6-5.9 27.9 0L336 441.4V48H48V0H336c26.5 0 48 21.5 48 48V488c0 22.1-23 36.5-42.4 25.8L192 397.1 42.4 513.8C23 524.5 0 510.1 0 488V48z'/%3E%3C/svg%3E">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -17,23 +15,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" media="print" onload="this.media='all'" />
     <noscript>
-      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     </noscript>
     
-    <!-- jsPDF library for PDF export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <!-- QR Code generator library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     
-    <!-- 
-      ADD: FIREBASE SDKs
-      We are adding the Firebase SDKs for Authentication (auth) and
-      the Firestore Database (firestore).
-    -->
     <script type="module">
-      // This is the V11 modular SDK
       import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
       import { 
         getAuth, 
@@ -43,7 +33,8 @@
       import { 
         getFirestore, 
         collection, 
-        doc, 
+        doc,
+        getDoc, 
         addDoc, 
         deleteDoc, 
         updateDoc, 
@@ -56,18 +47,17 @@
       // --- Global Firebase & State Variables ---
       let db, auth, userId;
       let firestoreListenerUnsubscribe = null;
-      let currentPocketItems = []; // Stores the current items for PDF/Email export
-      let appId = 'default-app-id'; // Default, will be replaced
-      let notificationTimeout; // For notification toast
+      let currentPocketItems = []; 
+      let appId = 'default-app-id'; 
+      let notificationTimeout; 
 
-      // --- Storage Keys for UI Preferences (Data is no longer in localStorage) ---
+      // --- Storage Keys for UI Preferences ---
       const POCKET_SORT_KEY = "pocketSortPreference";
       const POCKET_SEARCH_KEY = "pocketSearchTerm";
       const POCKET_TERMS_ACCEPTED_KEY = "pocketTermsAccepted";
       const POCKET_THEME_KEY = "theme";
 
       // --- DOM Elements ---
-      // ** MOVED DOM ELEMENTS UP so they exist before initFirebase() is called **
       const pocketGridContainer = document.getElementById('pocketGridContainer');
       const sortControlsContainer = document.querySelector('.sort-controls-container');
       const sortOptionsGroup = document.querySelector('.sort-options-group');
@@ -85,9 +75,6 @@
       const menuThemeText = document.getElementById('menuThemeText');
       const menuThemeState = document.getElementById('menuThemeState');
       
-      const jsonImportBtn = document.getElementById('jsonImportBtn');
-      const jsonExportBtn = document.getElementById('jsonExportBtn');
-      const jsonImportInput = document.getElementById('jsonImportInput');
       const menuDownloadPdfBtn = document.getElementById('menuDownloadPdfBtn');
       const menuEmailItemsBtn = document.getElementById('menuEmailItemsBtn');
 
@@ -98,17 +85,23 @@
       const emailModalCancelBtn = document.getElementById('emailModalCancelBtn');
       const emailModalSendBtn = document.getElementById('emailModalSendBtn');
 
+      // Account Modal DOM
+      const userProfileBtn = document.getElementById('userProfileBtn');
+      const headerAvatar = document.getElementById('headerAvatar');
+      const accountModalOverlay = document.getElementById('accountModalOverlay');
+      const closeAccountModalBtn = document.getElementById('closeAccountModalBtn');
+      const modalAvatar = document.getElementById('modalAvatar');
+      const modalName = document.getElementById('modalName');
+      const modalEmail = document.getElementById('modalEmail');
+      const modalLogoutBtn = document.getElementById('modalLogoutBtn');
+
       const notificationToast = document.getElementById('notificationToast');
-      const { jsPDF } = window.jspdf; // PDF generation
+      const { jsPDF } = window.jspdf;
 
       // Auth-related UI
-      const authStatusMessage = document.getElementById('auth-status-message');
       const loginBtn = document.getElementById('loginBtn');
-      const logoutBtn = document.getElementById('logoutBtn');
       const mainContentContainer = document.getElementById('mainContentContainer');
       const loginPromptMessage = document.getElementById('loginPromptMessage');
-      
-      // *** REMOVED ALL PASSWORDLESS-AUTH MODAL DOM ELEMENTS ***
       
       // --- Call initFirebase() AFTER globals and DOM elements are declared ---
       initFirebase();
@@ -131,7 +124,6 @@
           autoResizeTextarea(addItemInput);
       });
       
-      // --- Notification Logic (Unchanged) ---
       function showNotification(message, isError = false) {
           if (notificationTimeout) {
               clearTimeout(notificationTimeout);
@@ -146,8 +138,6 @@
       
       // --- Firebase Initialization & Auth Handling ---
       async function initFirebase() {
-          // If you want this to save under the atikle ecosystem database structure, 
-          // you might want to change 'default-app-id' to 'atikle-v1' here as well:
           appId = typeof __app_id !== 'undefined' ? __app_id : 'atikle-v1'; 
           
           const firebaseConfig = {
@@ -162,7 +152,6 @@
 
           if (!firebaseConfig.apiKey || !firebaseConfig.authDomain) {
               console.error("Firebase config is missing API key or Auth Domain.");
-              // Use the correct DOM elements now
               loginBtn.style.display = 'none';
               loginPromptMessage.textContent = "This app is not configured for login.";
               loginPromptMessage.style.display = 'block';
@@ -174,22 +163,44 @@
               const app = initializeApp(firebaseConfig);
               auth = getAuth(app);
               db = getFirestore(app);
-              setLogLevel('Debug'); // For easier debugging
+              setLogLevel('Debug');
               
-              // Set up the main auth state listener
               onAuthStateChanged(auth, async (user) => {
                   if (user) {
-                      // --- User is LOGGED IN ---
                       userId = user.uid;
                       console.log('User is logged in:', userId);
                       
                       // Update UI
                       mainContentContainer.style.display = 'block';
                       loginPromptMessage.style.display = 'none';
-                      // Use email if available, otherwise just show user is logged in
-                      authStatusMessage.textContent = user.email ? `${user.email}` : 'Logged In';
                       loginBtn.style.display = 'none';
-                      logoutBtn.style.display = 'block';
+                      userProfileBtn.style.display = 'block';
+
+                      // Fetch User Profile Data for Modal & Avatar
+                      try {
+                          const userDocRef = doc(db, 'artifacts', 'atikle', 'users', userId);
+                          const userDocSnap = await getDoc(userDocRef);
+                          let displayName = user.displayName || 'User';
+                          let photoUrl = user.photoURL || '';
+
+                          if (userDocSnap.exists()) {
+                              const userData = userDocSnap.data();
+                              if (userData.name) displayName = userData.name;
+                              if (userData.photoURL) photoUrl = userData.photoURL;
+                          }
+
+                          // Fallback to UI Avatars if no photo URL exists
+                          if (!photoUrl) {
+                              photoUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
+                          }
+
+                          headerAvatar.src = photoUrl;
+                          modalAvatar.src = photoUrl;
+                          modalName.textContent = displayName;
+                          modalEmail.textContent = user.email || 'No Email';
+                      } catch (error) {
+                          console.error("Error fetching user profile:", error);
+                      }
 
                       // Load UI preferences
                       searchInput.value = localStorage.getItem(POCKET_SEARCH_KEY) || '';
@@ -200,28 +211,20 @@
                       await setupFirestoreListener(appId, userId);
 
                   } else {
-                      // --- User is LOGGED OUT ---
                       console.log('User is signed out. Redirecting to atikle Single Sign-On');
                       userId = null;
                       
-                      // Detach old listener
                       if (firestoreListenerUnsubscribe) {
                           firestoreListenerUnsubscribe();
                           firestoreListenerUnsubscribe = null;
                       }
 
-                      // *** REDIRECT TO LOGIN PAGE ***
-                      // FIX: Use a valid relative URL path starting with './'
                       window.location.href = 'https://atikle.github.io/account/login?app=mypocket';
-                    //   window.location.href = './login.html';
 
-                      // The code below will likely not run, but it's good practice
-                      // to reset the UI in case the redirect fails.
                       mainContentContainer.style.display = 'none';
                       loginPromptMessage.style.display = 'block';
-                      authStatusMessage.textContent = '';
                       loginBtn.style.display = 'block';
-                      logoutBtn.style.display = 'none';
+                      userProfileBtn.style.display = 'none';
                       renderPocketGrid([]);
                   }
               });
@@ -232,10 +235,33 @@
           }
       }
 
-      // --- REMOVED: Passwordless Auth Functions ---
-      // (handleLoginRedirect, sendLoginLink, showLoginModal, etc.)
+      // --- Account Modal Logic ---
+      function openAccountModal() {
+          accountModalOverlay.classList.add('show');
+      }
+      function closeAccountModal() {
+          accountModalOverlay.classList.remove('show');
+      }
+      
+      userProfileBtn.addEventListener('click', openAccountModal);
+      userProfileBtn.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              openAccountModal();
+          }
+      });
+      
+      closeAccountModalBtn.addEventListener('click', closeAccountModal);
+      accountModalOverlay.addEventListener('click', (e) => {
+          if (e.target === accountModalOverlay) closeAccountModal();
+      });
+      
+      modalLogoutBtn.addEventListener('click', () => {
+          closeAccountModal();
+          signOut(auth);
+      });
 
-      // --- ADD: Firestore Data Functions ---
+      // --- Firestore Data Functions ---
       async function setupFirestoreListener(appId, uid) {
           if (firestoreListenerUnsubscribe) {
               firestoreListenerUnsubscribe();
@@ -373,7 +399,7 @@
           }
       });
 
-      // --- Settings Menu Logic (Unchanged) ---
+      // --- Settings Menu Logic ---
       function closeSettingsMenu() {
           settingsMenu.classList.remove('show');
           settingsBtn.setAttribute('aria-expanded', 'false');
@@ -395,7 +421,7 @@
           }
       });
 
-      // --- Theme Toggle Logic (Unchanged) ---
+      // --- Theme Toggle Logic ---
       function applyTheme(theme) {
           if (theme === 'dark') {
               document.documentElement.classList.add('dark');
@@ -423,95 +449,7 @@
           }
       });
       
-      // --- JSON Export Logic (Unchanged) ---
-      function exportToJson() {
-          const allItems = currentPocketItems;
-          const exportData = {
-              appIdentifier: { app: "mypocket", owner: "atikle" },
-              items: allItems.map(item => ({
-                  text: item.text,
-                  dateAdded: item.dateAdded,
-                  wasEdited: item.wasEdited
-              }))
-          };
-          const jsonString = JSON.stringify(exportData, null, 2);
-          const blob = new Blob([jsonString], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `mypocket_export_${new Date().toISOString().split('T')[0]}.json`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          showNotification('Items exported successfully!');
-          closeSettingsMenu();
-      }
-      jsonExportBtn.addEventListener('click', exportToJson);
-      jsonExportBtn.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') e.preventDefault(); exportToJson();
-      });
-
-      // --- JSON Import Logic (Unchanged) ---
-      function importFromJson(file) {
-          if (!file || !userId) {
-             showNotification("You must be logged in to import items.", true);
-             return;
-          }
-          const reader = new FileReader();
-          reader.onload = async (e) => {
-              try {
-                  const data = JSON.parse(e.target.result);
-                  if (!data.appIdentifier || data.appIdentifier.app !== 'mypocket') {
-                      throw new Error('Invalid or missing file identifier.');
-                  }
-                  if (!Array.isArray(data.items)) {
-                      throw new Error('Invalid data format: "items" is not an array.');
-                  }
-                  
-                  const itemsColRef = collection(db, 'artifacts', appId, 'users', userId, 'mypocket');
-                  showNotification(`Importing ${data.items.length} items...`);
-                  
-                  const addPromises = data.items.map(item => {
-                      if (typeof item === 'object' && item !== null && 'text' in item && 'dateAdded' in item) {
-                           return addDoc(itemsColRef, {
-                               text: item.text,
-                               dateAdded: item.dateAdded,
-                               wasEdited: item.wasEdited || false
-                           });
-                      }
-                      return Promise.resolve();
-                  });
-                  await Promise.all(addPromises);
-                  
-                  localStorage.setItem(POCKET_SORT_KEY, 'latest');
-                  localStorage.setItem(POCKET_SEARCH_KEY, '');
-                  searchInput.value = '';
-                  toggleClearSearchBtn();
-                  cancelAllEdits();
-                  showNotification(`Successfully imported ${data.items.length} items.`);
-
-              } catch (err) {
-                  console.error('Import failed:', err);
-                  showNotification(`Import failed: ${err.message}`, true);
-              } finally {
-                  jsonImportInput.value = null;
-              }
-          };
-          reader.onerror = () => {
-              showNotification('Error reading file.', true);
-              jsonImportInput.value = null;
-_          };
-          reader.readAsText(file);
-          closeSettingsMenu();
-      }
-      jsonImportBtn.addEventListener('click', () => jsonImportInput.click());
-      jsonImportBtn.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') e.preventDefault(); jsonImportInput.click();
-      });
-      jsonImportInput.addEventListener('change', (e) => importFromJson(e.target.files[0]));
-      
-      // --- Email Modal Logic (Unchanged) ---
+      // --- Email Modal Logic ---
       function validateEmailModal() {
           const isEmailValid = emailModalInput.value.includes('@') && emailModalInput.value.length > 3;
           const isTermsAccepted = emailTermsCheckbox.checked;
@@ -591,7 +529,7 @@ _          };
           }
       });
 
-      // --- Sort Button Logic (Unchanged) ---
+      // --- Sort Button Logic ---
       sortControlsContainer.addEventListener('click', (e) => {
           const clickedButton = e.target.closest('.sort-btn');
           if (!clickedButton) return; 
@@ -630,7 +568,7 @@ _          };
           return sortedItems;
       }
 
-      // --- Download PDF Logic (Unchanged) ---
+      // --- Download PDF Logic ---
       function generateAndDownloadPDF() {
           cancelAllEdits();
           console.log('Generating PDF...');
@@ -782,7 +720,7 @@ _          };
         });
 
 
-        // --- Render Logic (Unchanged) ---
+        // --- Render Logic ---
         function renderPocketGrid(items) {
             const isPocketEmpty = items.length === 0;
             const searchTerm = (localStorage.getItem(POCKET_SEARCH_KEY) || '').toLowerCase();
@@ -890,8 +828,7 @@ _          };
                         </div>
                     </div>
                     <div class="post-body">
-                        <!-- Text will be appended here -->
-                    </div>
+                        </div>
                     <div class="post-footer">
                         <div class="item-actions">
                             <a href="https://www.google.com/search?q=${encodeURIComponent(item.text)}" 
@@ -922,7 +859,7 @@ _          };
             });
         }
 
-        // --- Cancel All Edits Logic (Unchanged) ---
+        // --- Cancel All Edits Logic ---
         function cancelAllEdits() {
             document.querySelectorAll('.pocket-post-item.is-editing').forEach(itemEl => {
                 itemEl.classList.remove('is-editing');
@@ -936,7 +873,7 @@ _          };
             });
         }
 
-        // --- Event Delegation (Unchanged) ---
+        // --- Event Delegation ---
         pocketGridContainer.addEventListener('click', (e) => {
             const deleteButton = e.target.closest('.item-delete-btn'); 
             if (deleteButton) {
@@ -978,7 +915,7 @@ _          };
             }
         });
         
-        // --- Search Logic (Unchanged) ---
+        // --- Search Logic ---
         function toggleClearSearchBtn() {
             if (searchInput.value.length > 0) {
                 clearSearchBtn.style.display = 'flex';
@@ -1001,7 +938,7 @@ _          };
             searchInput.focus();
         });
         
-        // --- Real-time Sync Listener (Unchanged) ---
+        // --- Real-time Sync Listener ---
         window.addEventListener('storage', (e) => {
             if (e.key === POCKET_SORT_KEY) {
                 cancelAllEdits();
@@ -1024,12 +961,6 @@ _          };
             e.preventDefault();
             addNewPocketItem(addItemInput.value);
         });
-
-        // --- Auth UI Listeners ---
-        // ** Simplified: We only need a logout button listener **
-        logoutBtn.addEventListener('click', () => signOut(auth));
-        
-        // ** REMOVED: All listeners for the passwordless auth modal **
 
     </script>
     <style>
@@ -1132,7 +1063,6 @@ _          };
             flex-shrink: 0;
         }
         
-        /* --- MOD: Auth Controls in Header --- */
         .header-controls {
             display: flex;
             align-items: center;
@@ -1149,18 +1079,7 @@ _          };
             margin-right: 10px;
         }
 
-        #auth-status-message {
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--text-color-2);
-            max-width: 200px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        /* Simplified auth buttons */
-        #loginBtn, #logoutBtn {
+        #loginBtn {
             font-family: 'Inter', sans-serif;
             font-size: 14px;
             font-weight: 600;
@@ -1172,20 +1091,32 @@ _          };
             cursor: pointer;
             transition: all var(--transition-speed-fast) ease-out;
             white-space: nowrap;
+            display: none;
         }
-        #logoutBtn {
-            background-color: transparent;
-            color: var(--pocket-brand);
-            border-color: var(--pocket-brand);
-        }
-        #loginBtn:hover, #logoutBtn:hover {
+        #loginBtn:hover {
             opacity: 0.8;
         }
         
-        #logoutBtn { display: none; } /* Hide logout by default */
-        #loginBtn { display: none; } /* Hide login by default */
-        /* --- END: Auth Controls --- */
-        
+        /* Account Profile Avatar in Header */
+        .user-profile-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: border-color var(--transition-speed-fast);
+            display: none;
+        }
+        .user-profile-btn:hover, .user-profile-btn:focus-visible {
+            border-color: var(--pocket-brand);
+            outline: none;
+        }
+        .user-profile-btn img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
 
         .add-item-form {
             position: relative;
@@ -1340,13 +1271,12 @@ _          };
             flex-grow: 1; 
         }
         
-        /* --- MOD: Auth-related UI --- */
         #mainContentContainer {
-            display: none; /* Hide main content by default */
+            display: none; 
         }
         
         #loginPromptMessage {
-            display: block; /* Show by default */
+            display: block;
             font-size: 18px;
             font-weight: 500;
             color: var(--text-color-2);
@@ -1354,9 +1284,7 @@ _          };
             margin-top: 10vh;
             padding: 20px;
         }
-        /* --- END: Auth-related UI --- */
         
-
         .search-container {
             position: relative;
             margin-bottom: 20px;
@@ -1522,7 +1450,7 @@ _          };
             gap: 20px; 
         }
 
-        /* --- Post Item Styles (Unchanged) --- */
+        /* --- Post Item Styles --- */
         .pocket-post-item {
             background: var(--card-background-1);
             border-radius: 12px;
@@ -1669,7 +1597,6 @@ _          };
             opacity: 0;
             transform: scale(0.95); 
         }
-        /* --- END: Post Styles --- */
 
         .pocket-empty-message {
             font-size: 18px;
@@ -1678,7 +1605,7 @@ _          };
             margin-top: 50px;
         }
 
-        /* --- Notification Toast (Unchanged) --- */
+        /* --- Notification Toast --- */
         .notification-toast {
             position: fixed;
             bottom: -100px;
@@ -1869,10 +1796,76 @@ _          };
         @keyframes modal-spinner {
             to { transform: rotate(360deg); }
         }
-        
-        /* --- REMOVED: Auth Modal Specific Styles --- */
 
-        /* --- Footer (Unchanged) --- */
+        /* --- Account Modal Styles --- */
+        .account-modal {
+            text-align: center;
+            padding: 30px 20px;
+            max-width: 350px;
+        }
+        .close-modal-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 18px;
+            color: var(--text-color-2);
+            cursor: pointer;
+            transition: color var(--transition-speed-fast);
+        }
+        .close-modal-btn:hover {
+            color: var(--text-color-1);
+        }
+        .account-profile-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+        .modal-avatar-img {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 15px;
+            border: 2px solid var(--border-color-1);
+        }
+        .modal-user-name {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-color-1);
+            margin-bottom: 5px;
+        }
+        .modal-user-email {
+            font-size: 14px;
+            color: var(--text-color-2);
+        }
+        .account-modal-links {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .manage-account-btn {
+            background-color: var(--background-2);
+            color: var(--text-color-1);
+            border: 1px solid var(--border-color-1);
+            text-decoration: none;
+        }
+        .manage-account-btn:hover {
+            background-color: var(--hover-overlay);
+        }
+        .logout-account-btn {
+            background-color: transparent;
+            color: var(--pocket-error);
+            border: 1px solid var(--pocket-error);
+        }
+        .logout-account-btn:hover {
+            background-color: var(--pocket-error);
+            color: white;
+        }
+
+        /* --- Footer --- */
         .app-footer {
             text-align: left;
             padding: 20px 30px;
@@ -1916,7 +1909,7 @@ _          };
             text-decoration: underline;
         }
         
-        /* --- Responsive (Unchanged) --- */
+        /* --- Responsive --- */
         @media (max-width: 640px) {
             body { padding-top: 70px; }
             .app-header {
@@ -1927,10 +1920,7 @@ _          };
             .app-header h1 {
                 font-size: 20px;
             }
-            #auth-status-message {
-                display: none;
-            }
-            #loginBtn, #logoutBtn {
+            #loginBtn {
                 padding: 6px 12px;
                 font-size: 13px;
             }
@@ -2019,12 +2009,11 @@ _          };
         </h1>
         
         <div class="header-controls">
-            <!-- MOD: Auth Controls -->
             <div id="auth-controls">
-                <span id="auth-status-message">Loading...</span>
-                <!-- This login button is a fallback, but will be hidden by JS -->
                 <button id="loginBtn" class="auth-btn">Log In</button>
-                <button id="logoutBtn" class="auth-btn">Log Out</button>
+                <div id="userProfileBtn" class="user-profile-btn" aria-label="Open Account Menu" role="button" tabindex="0">
+                    <img id="headerAvatar" src="" alt="Profile">
+                </div>
             </div>
             
             <button id="settingsBtn" class="header-btn" title="Settings" aria-label="Open settings menu" aria-haspopup="true" aria-expanded="false">
@@ -2048,26 +2037,15 @@ _          };
                     <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
                     Email My Items
                 </div>
-                <div class="settings-menu-divider"></div>
-                <div class="settings-menu-item" id="jsonImportBtn" role="menuitem" tabindex="0">
-                    <i class="fa-solid fa-upload" aria-hidden="true"></i>
-                    Import backup
-                </div>
-                <div class="settings-menu-item" id="jsonExportBtn" role="menuitem" tabindex="0">
-                    <i class="fa-solid fa-download" aria-hidden="true"></i>
-                    Export backup
-                </div>
             </div>
         </div>
     </header>
 
     <div class="main-container">
-        <!-- MOD: Login Prompt -->
         <div id="loginPromptMessage">
             Connecting to login service...
         </div>
         
-        <!-- MOD: Main Content Wrapper -->
         <div id="mainContentContainer">
             <form class="add-item-form" id="addItemForm">
                 <label for="addItemInput" class="visually-hidden">Add new item</label>
@@ -2104,8 +2082,7 @@ _          };
             </div>
 
             <div id="pocketGridContainer">
-                <!-- Saved items will be dynamically added here from Firestore -->
-            </div>
+                </div>
         </div>
     </div>
     
@@ -2114,13 +2091,8 @@ _          };
         <a href="https://atikle.github.io/terms/mypocket" class="footer-link" id="termsLink">Terms & Conditions</a>
     </footer>
 
-    <!-- Hidden file input for JSON import (Unchanged) -->
-    <input type="file" id="jsonImportInput" accept=".json" class="visually-hidden">
-
-    <!-- Notification Toast element (Unchanged) -->
     <div class="notification-toast" id="notificationToast"></div>
 
-    <!-- Email Modal (Unchanged) -->
     <div class="modal-overlay" id="emailModalOverlay">
         <div class="modal-content" id="emailModalContent" role="dialog" aria-labelledby="emailModalTitle" aria-modal="true">
             <h3 id="emailModalTitle">Email Your Pocket Items</h3>
@@ -2147,6 +2119,25 @@ _          };
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="accountModalOverlay">
+        <div class="modal-content account-modal" id="accountModalContent" role="dialog" aria-modal="true">
+            <button class="close-modal-btn" id="closeAccountModalBtn" aria-label="Close Account Menu"><i class="fa-solid fa-times"></i></button>
+            <div class="account-profile-info">
+                <img id="modalAvatar" src="" alt="Profile Picture" class="modal-avatar-img">
+                <h3 id="modalName" class="modal-user-name">Loading...</h3>
+                <p id="modalEmail" class="modal-user-email">loading@example.com</p>
+            </div>
+            <div class="account-modal-links">
+                <a href="https://atikle.github.io/workspace/page?view=account-center" class="modal-btn manage-account-btn">
+                    Manage Account
+                </a>
+                <button id="modalLogoutBtn" class="modal-btn logout-account-btn">
+                    <i class="fa-solid fa-sign-out-alt"></i> Log Out
+                </button>
+            </div>
         </div>
     </div>
 
