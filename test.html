@@ -72,24 +72,22 @@
       const clearSearchBtn = document.getElementById('clearSearchBtn');
       
       const settingsBtn = document.getElementById('settingsBtn');
-      const settingsMenu = document.getElementById('settingsMenu');
-      const menuDarkModeToggle = document.getElementById('menuDarkModeToggle');
-      const menuThemeIcon = document.getElementById('menuThemeIcon');
-      const menuThemeText = document.getElementById('menuThemeText');
-      const menuThemeState = document.getElementById('menuThemeState');
-      
-      const menuDownloadPdfBtn = document.getElementById('menuDownloadPdfBtn');
-      const menuClearAllBtn = document.getElementById('menuClearAllBtn');
-
-      // Account Modal DOM
       const userProfileBtn = document.getElementById('userProfileBtn');
       const headerAvatar = document.getElementById('headerAvatar');
-      const accountModalOverlay = document.getElementById('accountModalOverlay');
-      const closeAccountModalBtn = document.getElementById('closeAccountModalBtn');
-      const modalAvatar = document.getElementById('modalAvatar');
-      const modalName = document.getElementById('modalName');
-      const modalEmail = document.getElementById('modalEmail');
-      const modalLogoutBtn = document.getElementById('modalLogoutBtn');
+
+      // --- Unified Modal Elements ---
+      const ttModalOverlay = document.getElementById('tt-settings-modal');
+      const ttCloseBtn = document.getElementById('tt-close-btn');
+      const ttDarkModeToggle = document.getElementById('tt-dark-mode-toggle');
+      const ttDownloadPdf = document.getElementById('tt-download-pdf');
+      const ttClearAll = document.getElementById('tt-clear-all');
+      const ttClearAllText = document.getElementById('tt-clear-all-text');
+      const ttClearAllIcon = document.getElementById('tt-clear-all-icon');
+      
+      const ttModalAvatar = document.getElementById('tt-modal-avatar');
+      const ttModalName = document.getElementById('tt-modal-name');
+      const ttModalEmail = document.getElementById('tt-modal-email');
+      const ttModalLogout = document.getElementById('tt-modal-logout');
 
       const notificationToast = document.getElementById('notificationToast');
       const { jsPDF } = window.jspdf;
@@ -191,9 +189,9 @@
                           }
 
                           headerAvatar.src = photoUrl;
-                          modalAvatar.src = photoUrl;
-                          modalName.textContent = displayName;
-                          modalEmail.textContent = user.email || 'No Email';
+                          ttModalAvatar.src = photoUrl;
+                          ttModalName.textContent = displayName;
+                          ttModalEmail.textContent = user.email || 'No Email';
                       } catch (error) {
                           console.error("Error fetching user profile:", error);
                       }
@@ -230,149 +228,100 @@
           }
       }
 
-      // --- Account Modal Logic ---
-      function openAccountModal() {
-          accountModalOverlay.classList.add('show');
-      }
-      function closeAccountModal() {
-          accountModalOverlay.classList.remove('show');
+      // --- Unified Modal Logic ---
+      // --- Unified Modal Logic ---
+      window.switchSettingsTab = function(tabId) {
+          document.querySelectorAll('.tt-tab-btn').forEach(btn => btn.classList.remove('active'));
+          document.querySelectorAll('.tt-tab-pane').forEach(pane => pane.classList.remove('active'));
+
+          document.getElementById(`tab-btn-${tabId}`).classList.add('active');
+          document.getElementById(`tab-${tabId}`).classList.add('active');
+
+          const titles = {
+              'general': 'General Settings',
+              'account': 'Account',
+              'about': 'About My Pocket'
+          };
+          const titleText = titles[tabId];
+          document.getElementById('tt-settings-title').textContent = titleText;
+          document.getElementById('tt-settings-title-mobile').textContent = titleText;
+      };
+
+      function openGlobalSettings(tabId = 'general') {
+          ttModalOverlay.classList.add('show');
+          switchSettingsTab(tabId);
       }
       
-      userProfileBtn.addEventListener('click', openAccountModal);
+      function closeGlobalSettings() {
+          ttModalOverlay.classList.remove('show');
+          resetClearAllBtn();
+      }
+      
+      settingsBtn.addEventListener('click', () => openGlobalSettings('general'));
+      
+      userProfileBtn.addEventListener('click', () => openGlobalSettings('account'));
       userProfileBtn.addEventListener('keydown', (e) => {
           if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
-              openAccountModal();
+              openGlobalSettings('account');
           }
       });
       
-      closeAccountModalBtn.addEventListener('click', closeAccountModal);
-      accountModalOverlay.addEventListener('click', (e) => {
-          if (e.target === accountModalOverlay) closeAccountModal();
+      // Bind event listener to all elements featuring the tt-close-action class
+      document.querySelectorAll('.tt-close-action').forEach(btn => {
+          btn.addEventListener('click', closeGlobalSettings);
       });
       
-      modalLogoutBtn.addEventListener('click', () => {
-          closeAccountModal();
+      ttModalOverlay.addEventListener('click', (e) => {
+          if (e.target === ttModalOverlay) closeGlobalSettings();
+      });
+      window.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && ttModalOverlay.classList.contains('show')) {
+              closeGlobalSettings();
+          }
+      });
+      
+      ttModalLogout.addEventListener('click', () => {
+          closeGlobalSettings();
           signOut(auth);
       });
 
-      // --- Firestore Data Functions ---
-      async function setupFirestoreListener(appId, uid) {
-          if (firestoreListenerUnsubscribe) {
-              firestoreListenerUnsubscribe();
+      // --- Theme Toggle Logic ---
+      function applyTheme(theme) {
+          if (theme === 'dark') {
+              document.documentElement.classList.add('dark');
+              ttDarkModeToggle.setAttribute('aria-pressed', 'true');
+          } else {
+              document.documentElement.classList.remove('dark');
+              ttDarkModeToggle.setAttribute('aria-pressed', 'false');
           }
-
-          const itemsColRef = collection(db, 'artifacts', appId, 'users', uid, 'mypocket');
-          const q = query(itemsColRef);
-
-          firestoreListenerUnsubscribe = onSnapshot(q, (querySnapshot) => {
-              let items = [];
-              querySnapshot.forEach((doc) => {
-                  items.push({ 
-                      id: doc.id,
-                      ...doc.data() 
-                  });
-              });
-              
-              currentPocketItems = items; 
-              renderPocketGrid(items);
-
-          }, (error) => {
-              console.error("Error listening to Firestore:", error);
-              showNotification("Error: Could not load items.", true);
-          });
+          localStorage.setItem(POCKET_THEME_KEY, theme);
       }
+      ttDarkModeToggle.addEventListener('click', () => {
+          let theme = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+          applyTheme(theme);
+      });
 
-      async function addNewPocketItem(text) {
-          if (!text || text.trim() === '') return;
-          if (!userId) {
-              showNotification("You must be logged in to add items.", true);
-              return;
-          }
-
-          const newItem = {
-              text: text.trim(),
-              dateAdded: new Date().toISOString(),
-              wasEdited: false 
-          };
-
-          try {
-              const itemsColRef = collection(db, 'artifacts', appId, 'users', userId, 'mypocket');
-              await addDoc(itemsColRef, newItem);
-              
-              addItemInput.value = '';
-              autoResizeTextarea(addItemInput);
-              localStorage.setItem(POCKET_SORT_KEY, 'latest');
-              localStorage.setItem(POCKET_SEARCH_KEY, '');
-              searchInput.value = '';
-              toggleClearSearchBtn();
-              cancelAllEdits();
-              
-          } catch (error) {
-              console.error("Error adding document: ", error);
-              showNotification("Error: Could not save item.", true);
-          }
-      }
-
-      async function deletePocketItem(itemId) {
-          if (!userId || !itemId) {
-              showNotification("Error: Could not delete item.", true);
-              return;
-          }
-          
-          try {
-              const itemRef = doc(db, 'artifacts', appId, 'users', userId, 'mypocket', itemId);
-              await deleteDoc(itemRef);
-          } catch (error) {
-              console.error("Error deleting document: ", error);
-              showNotification("Error: Could not delete item.", true);
-          }
-      }
-
-      async function updatePocketItem(itemId, newText) {
-          if (!userId || !itemId) {
-               showNotification("Error: Could not update item.", true);
-               return;
-          }
-          
-          if (!newText || newText.trim() === '') {
-              deletePocketItem(itemId); 
-              return; 
-          }
-
-          const updatedData = {
-              text: newText.trim(),
-              dateAdded: new Date().toISOString(),
-              wasEdited: true 
-          };
-
-          try {
-              const itemRef = doc(db, 'artifacts', appId, 'users', userId, 'mypocket', itemId);
-              await updateDoc(itemRef, updatedData);
-          } catch (error) {
-              console.error("Error updating document: ", error);
-              showNotification("Error: Could not update item.", true);
-          }
-      }
-      
-      // --- Clear All Logic (In Settings Menu) ---
+      // --- Clear All Logic ---
       let clearAllTimeout;
 
-      function resetMenuClearAllBtn() {
-          menuClearAllBtn.innerHTML = '<i class="fa-solid fa-trash" aria-hidden="true"></i> Clear All Items';
-          menuClearAllBtn.classList.remove('confirm-active');
+      function resetClearAllBtn() {
+          ttClearAllText.textContent = 'Clear All Items';
+          ttClearAllIcon.className = 'fa-solid fa-trash';
+          ttClearAll.classList.remove('confirm-active');
       }
 
-      menuClearAllBtn.addEventListener('click', async (e) => {
+      ttClearAll.addEventListener('click', async (e) => {
           e.stopPropagation(); 
           if (!userId) {
               showNotification("You must be logged in to clear items.", true);
-              closeSettingsMenu();
+              closeGlobalSettings();
               return;
           }
           
-          if (menuClearAllBtn.classList.contains('confirm-active')) {
-              menuClearAllBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Clearing...';
+          if (ttClearAll.classList.contains('confirm-active')) {
+              ttClearAllIcon.className = 'fa-solid fa-spinner fa-spin';
+              ttClearAllText.textContent = 'Clearing...';
 
               try {
                   const itemsColRef = collection(db, 'artifacts', appId, 'users', userId, 'mypocket');
@@ -386,162 +335,28 @@
                   
                   await Promise.all(deletePromises);
                   
-                  resetMenuClearAllBtn();
-                  closeSettingsMenu();
+                  resetClearAllBtn();
+                  closeGlobalSettings();
                   showNotification("All items have been cleared.", false);
 
               } catch (error) {
                   console.error("Error clearing all items:", error);
                   showNotification("Error: Could not clear items.", true);
-                  resetMenuClearAllBtn();
+                  resetClearAllBtn();
               }
 
           } else {
-              menuClearAllBtn.classList.add('confirm-active');
-              menuClearAllBtn.innerHTML = '<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Are you sure?';
+              ttClearAll.classList.add('confirm-active');
+              ttClearAllIcon.className = 'fa-solid fa-triangle-exclamation';
+              ttClearAllText.textContent = 'Are you sure?';
               cancelAllEdits();
               
               clearTimeout(clearAllTimeout);
               clearAllTimeout = setTimeout(() => {
-                  resetMenuClearAllBtn();
+                  resetClearAllBtn();
               }, 3000);
           }
       });
-
-      // --- Settings Menu Logic ---
-      function closeSettingsMenu() {
-          settingsMenu.classList.remove('show');
-          settingsBtn.setAttribute('aria-expanded', 'false');
-          resetMenuClearAllBtn();
-      }
-      settingsBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const isShown = settingsMenu.classList.toggle('show');
-          settingsBtn.setAttribute('aria-expanded', isShown);
-          if(!isShown) resetMenuClearAllBtn();
-      });
-      window.addEventListener('click', (e) => {
-          if (!settingsMenu.contains(e.target) && !settingsBtn.contains(e.target)) {
-              closeSettingsMenu();
-          }
-      });
-      window.addEventListener('keydown', (e) => {
-          if (e.key === 'Escape' && settingsMenu.classList.contains('show')) {
-              closeSettingsMenu();
-              settingsBtn.focus();
-          }
-      });
-
-      // --- Theme Toggle Logic ---
-      function applyTheme(theme) {
-          if (theme === 'dark') {
-              document.documentElement.classList.add('dark');
-              menuThemeIcon.classList.remove('fa-sun');
-              menuThemeIcon.classList.add('fa-moon');
-              menuThemeText.textContent = 'Dark Mode';
-              menuThemeState.textContent = 'On';
-          } else {
-              document.documentElement.classList.remove('dark');
-              menuThemeIcon.classList.remove('fa-moon');
-              menuThemeIcon.classList.add('fa-sun');
-              menuThemeText.textContent = 'Light Mode';
-              menuThemeState.textContent = 'Off';
-          }
-          localStorage.setItem(POCKET_THEME_KEY, theme);
-      }
-      menuDarkModeToggle.addEventListener('click', () => {
-          let theme = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
-          applyTheme(theme);
-      });
-      menuDarkModeToggle.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              menuDarkModeToggle.click();
-          }
-      });
-      
-      // --- Direct Email Items Logic ---
-      async function emailItemsDirectly() {
-          if (!auth || !auth.currentUser || !auth.currentUser.email) {
-              showNotification("Error: No email address linked to your account.", true);
-              return;
-          }
-
-          const items = currentPocketItems;
-          if (items.length === 0) {
-              showNotification("Your pocket is empty. Add some items first!", true);
-              return;
-          }
-          
-          const email = auth.currentUser.email;
-          const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyKVRgkVy0IOu-WdMKNFOwUA-uTd7TqvubWm0rlJPBDoTdby3-8KkBsWsDFiWPan7PHaA/exec';
-          
-          if (APPS_SCRIPT_URL.includes('PASTE_YOUR_DEPLOYED_WEB_APP_URL_HERE')) {
-              showNotification("Setup incomplete. Please update APPS_SCRIPT_URL in the HTML.", true);
-              return;
-          }
-
-          const originalText = emailListBtn.querySelector('.btn-text').textContent;
-          emailListBtn.querySelector('.btn-text').textContent = 'Sending...';
-          emailListBtn.disabled = true;
-
-          try {
-              const payloadItems = items.map(item => ({
-                  text: item.text,
-                  dateAdded: item.dateAdded,
-                  wasEdited: item.wasEdited
-              }));
-              const payload = {
-                  email: email,
-                  items: payloadItems
-              };
-              
-              await fetch(APPS_SCRIPT_URL, {
-                  method: "POST",
-                  headers: { "Content-Type": "text/plain" },
-                  body: JSON.stringify(payload),
-                  mode: 'no-cors'
-              });
-              showNotification(`Items successfully sent to ${email}`);
-          } catch (error) {
-              console.log('Apps Script fetch initiated:', error);
-              showNotification(`Items successfully sent to ${email}`);
-          } finally {
-              emailListBtn.querySelector('.btn-text').textContent = originalText;
-              emailListBtn.disabled = false;
-          }
-      }
-
-      emailListBtn.addEventListener('click', emailItemsDirectly);
-
-      // --- Sort Button Logic ---
-      sortControlsContainer.addEventListener('click', (e) => {
-          const clickedButton = e.target.closest('.sort-btn');
-          if (!clickedButton) return; 
-          if (clickedButton.closest('.sort-actions-group')) return;
-          
-          sortOptionsGroup.querySelectorAll('.sort-btn').forEach(btn => {
-              btn.classList.remove('active');
-              btn.setAttribute('aria-pressed', 'false');
-          });
-          clickedButton.classList.add('active');
-          clickedButton.setAttribute('aria-pressed', 'true');
-          const sortValue = clickedButton.dataset.sort;
-          localStorage.setItem(POCKET_SORT_KEY, sortValue);
-          cancelAllEdits();
-          renderPocketGrid(currentPocketItems);
-      });
-      
-      function getSortedItems(items) {
-          let sortedItems = [...items]; 
-          const sortPreference = localStorage.getItem(POCKET_SORT_KEY) || 'latest';
-          if (sortPreference === 'oldest') {
-              sortedItems.sort((a, b) => new Date(a.dateAdded) - new Date(b.dateAdded));
-          } else {
-              sortedItems.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
-          }
-          return sortedItems;
-      }
 
       // --- Download PDF Logic ---
       function generateAndDownloadPDF() {
@@ -681,19 +496,195 @@
                 showNotification('Failed to generate PDF.', true);
             }
         }
+        
         downloadPdfBtn.addEventListener('click', generateAndDownloadPDF);
-        menuDownloadPdfBtn.addEventListener('click', () => {
+        ttDownloadPdf.addEventListener('click', () => {
             generateAndDownloadPDF();
-            closeSettingsMenu();
-        });
-        menuDownloadPdfBtn.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                generateAndDownloadPDF();
-                closeSettingsMenu();
-            }
+            closeGlobalSettings();
         });
 
+
+      // --- Firestore Data Functions ---
+      async function setupFirestoreListener(appId, uid) {
+          if (firestoreListenerUnsubscribe) {
+              firestoreListenerUnsubscribe();
+          }
+
+          const itemsColRef = collection(db, 'artifacts', appId, 'users', uid, 'mypocket');
+          const q = query(itemsColRef);
+
+          firestoreListenerUnsubscribe = onSnapshot(q, (querySnapshot) => {
+              let items = [];
+              querySnapshot.forEach((doc) => {
+                  items.push({ 
+                      id: doc.id,
+                      ...doc.data() 
+                  });
+              });
+              
+              currentPocketItems = items; 
+              renderPocketGrid(items);
+
+          }, (error) => {
+              console.error("Error listening to Firestore:", error);
+              showNotification("Error: Could not load items.", true);
+          });
+      }
+
+      async function addNewPocketItem(text) {
+          if (!text || text.trim() === '') return;
+          if (!userId) {
+              showNotification("You must be logged in to add items.", true);
+              return;
+          }
+
+          const newItem = {
+              text: text.trim(),
+              dateAdded: new Date().toISOString(),
+              wasEdited: false 
+          };
+
+          try {
+              const itemsColRef = collection(db, 'artifacts', appId, 'users', userId, 'mypocket');
+              await addDoc(itemsColRef, newItem);
+              
+              addItemInput.value = '';
+              autoResizeTextarea(addItemInput);
+              localStorage.setItem(POCKET_SORT_KEY, 'latest');
+              localStorage.setItem(POCKET_SEARCH_KEY, '');
+              searchInput.value = '';
+              toggleClearSearchBtn();
+              cancelAllEdits();
+              
+          } catch (error) {
+              console.error("Error adding document: ", error);
+              showNotification("Error: Could not save item.", true);
+          }
+      }
+
+      async function deletePocketItem(itemId) {
+          if (!userId || !itemId) {
+              showNotification("Error: Could not delete item.", true);
+              return;
+          }
+          
+          try {
+              const itemRef = doc(db, 'artifacts', appId, 'users', userId, 'mypocket', itemId);
+              await deleteDoc(itemRef);
+          } catch (error) {
+              console.error("Error deleting document: ", error);
+              showNotification("Error: Could not delete item.", true);
+          }
+      }
+
+      async function updatePocketItem(itemId, newText) {
+          if (!userId || !itemId) {
+               showNotification("Error: Could not update item.", true);
+               return;
+          }
+          
+          if (!newText || newText.trim() === '') {
+              deletePocketItem(itemId); 
+              return; 
+          }
+
+          const updatedData = {
+              text: newText.trim(),
+              dateAdded: new Date().toISOString(),
+              wasEdited: true 
+          };
+
+          try {
+              const itemRef = doc(db, 'artifacts', appId, 'users', userId, 'mypocket', itemId);
+              await updateDoc(itemRef, updatedData);
+          } catch (error) {
+              console.error("Error updating document: ", error);
+              showNotification("Error: Could not update item.", true);
+          }
+      }
+
+      // --- Direct Email Items Logic ---
+      async function emailItemsDirectly() {
+          if (!auth || !auth.currentUser || !auth.currentUser.email) {
+              showNotification("Error: No email address linked to your account.", true);
+              return;
+          }
+
+          const items = currentPocketItems;
+          if (items.length === 0) {
+              showNotification("Your pocket is empty. Add some items first!", true);
+              return;
+          }
+          
+          const email = auth.currentUser.email;
+          const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyKVRgkVy0IOu-WdMKNFOwUA-uTd7TqvubWm0rlJPBDoTdby3-8KkBsWsDFiWPan7PHaA/exec';
+          
+          if (APPS_SCRIPT_URL.includes('PASTE_YOUR_DEPLOYED_WEB_APP_URL_HERE')) {
+              showNotification("Setup incomplete. Please update APPS_SCRIPT_URL in the HTML.", true);
+              return;
+          }
+
+          const originalText = emailListBtn.querySelector('.btn-text').textContent;
+          emailListBtn.querySelector('.btn-text').textContent = 'Sending...';
+          emailListBtn.disabled = true;
+
+          try {
+              const payloadItems = items.map(item => ({
+                  text: item.text,
+                  dateAdded: item.dateAdded,
+                  wasEdited: item.wasEdited
+              }));
+              const payload = {
+                  email: email,
+                  items: payloadItems
+              };
+              
+              await fetch(APPS_SCRIPT_URL, {
+                  method: "POST",
+                  headers: { "Content-Type": "text/plain" },
+                  body: JSON.stringify(payload),
+                  mode: 'no-cors'
+              });
+              showNotification(`Items successfully sent to ${email}`);
+          } catch (error) {
+              console.log('Apps Script fetch initiated:', error);
+              showNotification(`Items successfully sent to ${email}`);
+          } finally {
+              emailListBtn.querySelector('.btn-text').textContent = originalText;
+              emailListBtn.disabled = false;
+          }
+      }
+
+      emailListBtn.addEventListener('click', emailItemsDirectly);
+
+      // --- Sort Button Logic ---
+      sortControlsContainer.addEventListener('click', (e) => {
+          const clickedButton = e.target.closest('.sort-btn');
+          if (!clickedButton) return; 
+          if (clickedButton.closest('.sort-actions-group')) return;
+          
+          sortOptionsGroup.querySelectorAll('.sort-btn').forEach(btn => {
+              btn.classList.remove('active');
+              btn.setAttribute('aria-pressed', 'false');
+          });
+          clickedButton.classList.add('active');
+          clickedButton.setAttribute('aria-pressed', 'true');
+          const sortValue = clickedButton.dataset.sort;
+          localStorage.setItem(POCKET_SORT_KEY, sortValue);
+          cancelAllEdits();
+          renderPocketGrid(currentPocketItems);
+      });
+      
+      function getSortedItems(items) {
+          let sortedItems = [...items]; 
+          const sortPreference = localStorage.getItem(POCKET_SORT_KEY) || 'latest';
+          if (sortPreference === 'oldest') {
+              sortedItems.sort((a, b) => new Date(a.dateAdded) - new Date(b.dateAdded));
+          } else {
+              sortedItems.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
+          }
+          return sortedItems;
+      }
 
         // --- Render Logic ---
         function renderPocketGrid(items) {
@@ -712,13 +703,13 @@
                 emailListBtn.setAttribute('aria-disabled', 'true');
                 downloadPdfBtn.disabled = true;
                 downloadPdfBtn.setAttribute('aria-disabled', 'true');
-                menuClearAllBtn.style.opacity = '0.5';
-                menuClearAllBtn.style.pointerEvents = 'none';
+                ttClearAll.style.opacity = '0.5';
+                ttClearAll.style.pointerEvents = 'none';
                 return;
             }
             
-            menuClearAllBtn.style.opacity = '1';
-            menuClearAllBtn.style.pointerEvents = 'auto';
+            ttClearAll.style.opacity = '1';
+            ttClearAll.style.pointerEvents = 'auto';
             downloadPdfBtn.disabled = filteredItems.length === 0;
             downloadPdfBtn.setAttribute('aria-disabled', filteredItems.length === 0);
             emailListBtn.disabled = false;
@@ -1174,67 +1165,6 @@
             background-color: var(--hover-overlay);
             color: var(--text-color-1);
         }
-        .fa-sun { color: #fdd835; }
-        .fa-moon { color: #e0e0e0; }
-
-        .settings-menu {
-            display: none;
-            position: absolute;
-            top: 50px;
-            right: 0;
-            width: 260px;
-            background-color: var(--card-background-1);
-            border-radius: 8px;
-            border: 1px solid var(--border-color-1);
-            box-shadow: var(--shadow-2);
-            z-index: 101;
-            overflow: hidden;
-        }
-        .settings-menu.show {
-            display: block;
-        }
-        .settings-menu-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 16px;
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--text-color-1);
-            cursor: pointer;
-            transition: background-color var(--transition-speed-fast) var(--ease-out-quad);
-            user-select: none;
-        }
-        .settings-menu-item:hover {
-            background-color: var(--hover-overlay);
-        }
-        .settings-menu-item i.fa-solid {
-            width: 20px;
-            text-align: center;
-            font-size: 16px;
-            color: inherit;
-        }
-        .settings-menu-item.toggle-item {
-            justify-content: space-between;
-        }
-        .settings-menu-item .menu-item-label {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .settings-menu-divider {
-            height: 1px;
-            background-color: var(--border-color-1);
-            margin: 4px 0;
-        }
-
-        #menuClearAllBtn {
-            color: var(--pocket-error);
-        }
-        #menuClearAllBtn.confirm-active {
-            background-color: var(--pocket-error);
-            color: white;
-        }
 
         .month-header {
             font-size: 20px;
@@ -1607,127 +1537,187 @@
             background-color: var(--pocket-error);
         }
 
-        /* --- Modal Styles (Base) --- */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 1001;
-            opacity: 0;
-            transition: opacity var(--transition-speed-fast) ease-out;
+        /* --- Unified Settings & Account Modal (TimeTrekker Style) --- */
+        /* --- Unified Settings & Account Modal (Refined) --- */
+        .tt-modal-overlay {
+            display: none; position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 1001;
+            opacity: 0; transition: opacity var(--transition-speed-normal) ease-out;
+            align-items: flex-end; justify-content: center; padding: 0;
         }
-        .modal-overlay.show {
-            display: block;
-            opacity: 1;
+        @media (min-width: 768px) {
+            .tt-modal-overlay { align-items: center; padding: 16px; background-color: rgba(0, 0, 0, 0.8); }
         }
-        .modal-content {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+        .tt-modal-overlay.show { display: flex; opacity: 1; }
+
+        .tt-modal-content {
             background-color: var(--card-background-1);
-            color: var(--text-color-1);
-            border-radius: 12px;
-            box-shadow: var(--shadow-2);
-            z-index: 1002;
-            width: 90%;
-            max-width: 450px;
-            padding: 24px 30px;
-            display: none;
-            opacity: 0;
-            transform: translate(-50%, -60%);
-            transition: opacity var(--transition-speed-fast) ease-out, transform var(--transition-speed-fast) ease-out;
+            width: 100%; max-height: 90vh; height: 100%; flex-direction: column; display: flex;
+            border-radius: 20px 20px 0 0; box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15); overflow: hidden;
+            transform: translateY(100%); transition: transform var(--transition-speed-normal) cubic-bezier(0.2, 0.8, 0.2, 1);
         }
-        .modal-overlay.show .modal-content {
-            display: block;
-            opacity: 1;
-            transform: translate(-50%, -50%);
+        @media (min-width: 768px) {
+            .tt-modal-content {
+                max-width: 768px; height: 600px; border-radius: 12px; transform: scale(0.95);
+                transition: transform var(--transition-speed-normal) ease-out; border: 1px solid var(--border-color-1);
+            }
         }
-        .modal-btn {
-            font-family: 'Inter', sans-serif;
-            font-size: 15px;
-            font-weight: 600;
-            padding: 10px 16px;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            transition: all var(--transition-speed-fast) ease-out;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
+        .tt-modal-overlay.show .tt-modal-content { transform: translateY(0); }
+        @media (min-width: 768px) {
+            .tt-modal-overlay.show .tt-modal-content { transform: scale(1); }
         }
 
-        /* --- Account Modal Styles --- */
-        .account-modal {
-            text-align: center;
-            padding: 30px 20px;
-            max-width: 350px;
+        .tt-sheet-handle {
+            width: 40px; height: 5px; background: var(--border-color-1); border-radius: 99px;
+            margin: 12px auto 4px auto; flex-shrink: 0; display: block;
         }
-        .close-modal-btn {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: none;
-            border: none;
-            font-size: 18px;
-            color: var(--text-color-2);
-            cursor: pointer;
-            transition: color var(--transition-speed-fast);
+        @media (min-width: 768px) { .tt-sheet-handle { display: none; } }
+
+        /* Mobile-first Layout Adjustments */
+        .tt-modal-layout { display: flex; flex-direction: column; height: 100%; flex: 1; min-height: 0; }
+        @media (min-width: 768px) { .tt-modal-layout { flex-direction: row; } }
+
+        .tt-sidebar {
+            width: 100%; background-color: var(--card-background-1);
+            display: flex; flex-direction: column; flex-shrink: 0; z-index: 10;
+            padding-top: 8px; /* space after handle */
         }
-        .close-modal-btn:hover {
-            color: var(--text-color-1);
+        @media (min-width: 768px) {
+            .tt-sidebar { width: 220px; border-right: 1px solid var(--border-color-1); padding-top: 0; background-color: var(--background-2); }
         }
-        .account-profile-info {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-bottom: 25px;
+
+        /* Top Universal Header for Mobile */
+        .tt-mobile-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 20px 16px 20px;
         }
-        .modal-avatar-img {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            object-fit: cover;
-            margin-bottom: 15px;
-            border: 2px solid var(--border-color-1);
+        .tt-mobile-header h3 { font-size: 20px; font-weight: 700; color: var(--text-color-1); }
+        .tt-close-btn {
+            width: 32px; height: 32px; border-radius: 50%; border: none; background: var(--background-2);
+            color: var(--text-color-2); cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: all var(--transition-speed-fast); font-size: 16px;
         }
-        .modal-user-name {
-            font-size: 20px;
-            font-weight: 600;
-            color: var(--text-color-1);
-            margin-bottom: 5px;
+        .tt-close-btn:hover { background-color: var(--hover-overlay); color: var(--text-color-1); }
+
+        @media (min-width: 768px) {
+            .tt-mobile-header { display: none; } /* Hide on desktop, use main header */
         }
-        .modal-user-email {
-            font-size: 14px;
-            color: var(--text-color-2);
+
+        .tt-sidebar-header { display: none; padding: 24px 20px; border-bottom: 1px solid var(--border-color-1); }
+        @media (min-width: 768px) { .tt-sidebar-header { display: block; } }
+        .tt-sidebar-header h2 { font-size: 20px; font-weight: 700; color: var(--text-color-1); }
+
+        /* Segmented Control Tabs for Mobile */
+        .tt-nav {
+            display: flex; flex-direction: row; padding: 4px; gap: 4px;
+            background-color: var(--background-2); border-radius: 10px; margin: 0 20px 16px 20px;
         }
-        .account-modal-links {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+        @media (min-width: 768px) {
+            .tt-nav {
+                flex-direction: column; margin: 0; padding: 12px; background-color: transparent; border-radius: 0; gap: 8px;
+            }
         }
-        .manage-account-btn {
-            background-color: var(--background-2);
-            color: var(--text-color-1);
-            border: 1px solid var(--border-color-1);
-            text-decoration: none;
+
+        .tt-tab-btn {
+            display: flex; align-items: center; justify-content: center; padding: 10px 12px; font-size: 13px; font-weight: 600;
+            border-radius: 8px; border: none; background: transparent; color: var(--text-color-2); cursor: pointer;
+            transition: all var(--transition-speed-fast); flex: 1; font-family: 'Inter', sans-serif;
         }
-        .manage-account-btn:hover {
-            background-color: var(--hover-overlay);
+        @media (min-width: 768px) {
+            .tt-tab-btn { justify-content: flex-start; font-size: 14px; padding: 12px 16px; }
         }
-        .logout-account-btn {
-            background-color: transparent;
-            color: var(--pocket-error);
-            border: 1px solid var(--pocket-error);
+        .tt-tab-btn i { margin-right: 6px; font-size: 16px; width: 20px; text-align: center; }
+        .tt-tab-btn:hover { color: var(--text-color-1); }
+        
+        /* Active State */
+        .tt-tab-btn.active { background-color: var(--card-background-1); color: var(--pocket-brand); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        @media (min-width: 768px) {
+            .tt-tab-btn.active { background-color: rgba(239, 64, 86, 0.1); box-shadow: none; }
         }
-        .logout-account-btn:hover {
-            background-color: var(--pocket-error);
-            color: white;
+        html.dark .tt-tab-btn.active { box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        @media (min-width: 768px) { html.dark .tt-tab-btn.active { box-shadow: none; } }
+
+        .tt-main-area { flex: 1; display: flex; flex-direction: column; min-width: 0; background-color: var(--background-1); }
+
+        .tt-main-header { display: none; } /* Hidden on mobile */
+        @media (min-width: 768px) {
+            .tt-main-header {
+                height: 72px; display: flex; align-items: center; justify-content: space-between;
+                padding: 0 32px; border-bottom: 1px solid var(--border-color-1); flex-shrink: 0;
+            }
+            .tt-main-header h3 { font-size: 20px; font-weight: 600; color: var(--text-color-1); }
         }
+
+        .tt-scroll-area { flex: 1; overflow-y: auto; padding: 0 20px 32px 20px; }
+        @media (min-width: 768px) { .tt-scroll-area { padding: 32px; } }
+        
+        .tt-tab-pane { display: none; flex-direction: column; gap: 24px; animation: fadeIn var(--transition-speed-fast) ease-out forwards; }
+        .tt-tab-pane.active { display: flex; }
+
+        .tt-setting-group { display: flex; flex-direction: column; gap: 12px; }
+        .tt-setting-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; }
+        .tt-setting-info label { font-size: 15px; font-weight: 600; color: var(--text-color-1); display: block; }
+        .tt-setting-info p { font-size: 13px; color: var(--text-color-2); margin-top: 4px; line-height: 1.4; }
+
+        /* iOS Style Toggle */
+        .tt-toggle-btn {
+            background: transparent; border: none; padding: 0; cursor: pointer; display: flex; align-items: center; outline: none;
+        }
+        .tt-toggle-track {
+            width: 50px; height: 30px; background-color: var(--border-color-1); border-radius: 99px; position: relative;
+            transition: background-color 0.3s ease;
+        }
+        .tt-toggle-btn[aria-pressed="true"] .tt-toggle-track { background-color: var(--pocket-brand); }
+        .tt-toggle-thumb {
+            position: absolute; top: 2px; left: 2px; width: 26px; height: 26px;
+            background-color: white; border-radius: 50%; transition: transform 0.3s cubic-bezier(0.2, 0.85, 0.32, 1.2);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+        .tt-toggle-btn[aria-pressed="true"] .tt-toggle-thumb { transform: translateX(20px); }
+
+        .tt-action-item {
+            display: flex; justify-content: space-between; align-items: center; padding: 16px 20px;
+            border-radius: 12px; border: 1px solid var(--border-color-1); cursor: pointer;
+            transition: all var(--transition-speed-fast); background-color: var(--card-background-1);
+        }
+        .tt-action-item:hover { background-color: var(--background-2); border-color: var(--text-color-2); }
+        .tt-action-item:active { transform: scale(0.98); }
+        .tt-action-info { display: flex; align-items: center; gap: 16px; }
+        .tt-action-info i { font-size: 20px; color: var(--text-color-2); width: 24px; text-align: center; }
+        .tt-action-info div label { font-size: 15px; font-weight: 600; color: var(--text-color-1); cursor: pointer; display: block; }
+        .tt-action-info div p { font-size: 13px; color: var(--text-color-2); margin-top: 4px; }
+        .tt-action-item > i { color: var(--text-color-2); font-size: 16px; opacity: 0.5; }
+
+        .tt-action-item.danger-item .tt-action-info i, .tt-action-item.danger-item .tt-action-info div label { color: var(--pocket-error); }
+        .tt-action-item.danger-item.confirm-active { background-color: var(--pocket-error); border-color: var(--pocket-error); }
+        .tt-action-item.danger-item.confirm-active .tt-action-info i,
+        .tt-action-item.danger-item.confirm-active .tt-action-info div label,
+        .tt-action-item.danger-item.confirm-active .tt-action-info div p,
+        .tt-action-item.danger-item.confirm-active > i { color: white; }
+
+        .tt-account-card {
+            display: flex; align-items: center; padding: 20px; background-color: var(--background-2);
+            border: 1px solid var(--border-color-1); border-radius: 12px; gap: 20px;
+        }
+        .tt-account-card img { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 2px solid var(--card-background-1); box-shadow: var(--shadow-2); }
+        .tt-account-card h3 { font-size: 20px; font-weight: 700; color: var(--text-color-1); }
+        .tt-account-card p { font-size: 14px; color: var(--text-color-2); margin-top: 4px; }
+
+        .tt-btn-secondary, .tt-btn-danger {
+            display: flex; align-items: center; justify-content: center; width: 100%; padding: 14px;
+            border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all var(--transition-speed-fast);
+            text-decoration: none; gap: 8px; font-family: 'Inter', sans-serif; border: 1px solid transparent;
+        }
+        .tt-btn-secondary { background-color: var(--background-2); color: var(--text-color-1); }
+        .tt-btn-secondary:hover { background-color: var(--hover-overlay); border-color: var(--border-color-1); }
+        .tt-btn-danger { background-color: rgba(231, 76, 60, 0.1); color: var(--pocket-error); }
+        .tt-btn-danger:hover { background-color: rgba(231, 76, 60, 0.2); }
+
+        .tt-about-content { text-align: center; padding-top: 40px; }
+        .tt-about-content i.fa-bookmark { font-size: 72px; color: var(--pocket-brand); margin-bottom: 20px; filter: drop-shadow(0 4px 12px rgba(239, 64, 86, 0.3)); }
+        .tt-about-content h2 { font-size: 28px; font-weight: 700; color: var(--text-color-1); letter-spacing: -0.5px; }
+        .tt-about-content p.version { font-size: 15px; font-weight: 500; color: var(--text-color-2); margin-top: 8px; }
+        .tt-about-footer { margin-top: 48px; font-size: 13px; color: var(--text-color-2); opacity: 0.8; line-height: 1.6; }
 
         /* --- Footer --- */
         .app-footer {
@@ -1877,26 +1867,6 @@
             <button id="settingsBtn" class="header-btn" title="Settings" aria-label="Open settings menu" aria-haspopup="true" aria-expanded="false">
                 <i class="fa-solid fa-cog" aria-hidden="true"></i>
             </button>
-            
-            <div class="settings-menu" id="settingsMenu" role="menu" aria-labelledby="settingsBtn">
-                <div class="settings-menu-item toggle-item" id="menuDarkModeToggle" role="menuitem" tabindex="0">
-                    <div class="menu-item-label">
-                        <i class="fa-solid fa-moon" id="menuThemeIcon" aria-hidden="true"></i>
-                        <span id="menuThemeText">Dark Mode</span>
-                    </div>
-                    <span class="visually-hidden" id="menuThemeState">Off</span>
-                </div>
-                <div class="settings-menu-divider"></div>
-                <div class="settings-menu-item" id="menuDownloadPdfBtn" role="menuitem" tabindex="0">
-                    <i class="fa-solid fa-file-pdf" aria-hidden="true"></i>
-                    Download PDF
-                </div>
-                <div class="settings-menu-divider"></div>
-                <div class="settings-menu-item" id="menuClearAllBtn" role="menuitem" tabindex="0">
-                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
-                    Clear All Items
-                </div>
-            </div>
         </div>
     </header>
 
@@ -1941,7 +1911,7 @@
             </div>
 
             <div id="pocketGridContainer">
-                </div>
+            </div>
         </div>
     </div>
     
@@ -1952,21 +1922,118 @@
 
     <div class="notification-toast" id="notificationToast"></div>
 
-    <div class="modal-overlay" id="accountModalOverlay">
-        <div class="modal-content account-modal" id="accountModalContent" role="dialog" aria-modal="true">
-            <button class="close-modal-btn" id="closeAccountModalBtn" aria-label="Close Account Menu"><i class="fa-solid fa-times"></i></button>
-            <div class="account-profile-info">
-                <img id="modalAvatar" src="" alt="Profile Picture" class="modal-avatar-img">
-                <h3 id="modalName" class="modal-user-name">Loading...</h3>
-                <p id="modalEmail" class="modal-user-email">loading@example.com</p>
-            </div>
-            <div class="account-modal-links">
-                <a href="https://atikle.github.io/workspace/page?view=account-center" class="modal-btn manage-account-btn">
-                    Manage Account
-                </a>
-                <button id="modalLogoutBtn" class="modal-btn logout-account-btn">
-                    <i class="fa-solid fa-sign-out-alt"></i> Log Out
-                </button>
+    <div id="tt-settings-modal" class="tt-modal-overlay">
+        <div class="tt-modal-content" id="tt-settings-panel">
+            
+            <div class="tt-modal-layout">
+                <aside class="tt-sidebar">
+                    <span class="tt-sheet-handle"></span>
+                    
+                    <div class="tt-mobile-header">
+                        <h3 id="tt-settings-title-mobile">General Settings</h3>
+                        <button class="tt-close-btn tt-close-action"><i class="fa-solid fa-times"></i></button>
+                    </div>
+
+                    <div class="tt-sidebar-header">
+                        <h2>Settings</h2>
+                    </div>
+                    <nav class="tt-nav">
+                        <button onclick="switchSettingsTab('general')" id="tab-btn-general" class="tt-tab-btn active">
+                            <i class="fa-solid fa-sliders-h"></i> General
+                        </button>
+                        <button onclick="switchSettingsTab('account')" id="tab-btn-account" class="tt-tab-btn">
+                            <i class="fa-solid fa-user"></i> Account
+                        </button>
+                        <button onclick="switchSettingsTab('about')" id="tab-btn-about" class="tt-tab-btn">
+                            <i class="fa-solid fa-info-circle"></i> About
+                        </button>
+                    </nav>
+                </aside>
+                
+                <div class="tt-main-area">
+                    <header class="tt-main-header">
+                        <h3 id="tt-settings-title">General Settings</h3>
+                        <button class="tt-close-btn tt-close-action"><i class="fa-solid fa-times"></i></button>
+                    </header>
+                    
+                    <div class="tt-scroll-area">
+                        
+                        <div id="tab-general" class="tt-tab-pane active">
+                            <div class="tt-setting-group">
+                                <div class="tt-setting-item">
+                                    <div class="tt-setting-info">
+                                        <label>Dark Mode</label>
+                                        <p>Toggle the dark visual appearance</p>
+                                    </div>
+                                    <button id="tt-dark-mode-toggle" class="tt-toggle-btn" aria-pressed="false">
+                                        <div class="tt-toggle-track">
+                                            <span class="tt-toggle-thumb"></span>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <hr style="border-top: 1px solid var(--border-color-1); border-bottom: none; border-left: none; border-right: none;" />
+                            
+                            <div class="tt-setting-group">
+                                <div class="tt-action-item" id="tt-download-pdf">
+                                    <div class="tt-action-info">
+                                        <i class="fa-solid fa-file-pdf"></i>
+                                        <div>
+                                            <label>Download PDF</label>
+                                            <p>Export all your pocket items</p>
+                                        </div>
+                                    </div>
+                                    <i class="fa-solid fa-chevron-right"></i>
+                                </div>
+                                
+                                <div class="tt-action-item danger-item" id="tt-clear-all">
+                                    <div class="tt-action-info">
+                                        <i class="fa-solid fa-trash" id="tt-clear-all-icon"></i>
+                                        <div>
+                                            <label id="tt-clear-all-text">Clear All Items</label>
+                                            <p>Permanently delete everything</p>
+                                        </div>
+                                    </div>
+                                    <i class="fa-solid fa-chevron-right"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="tab-account" class="tt-tab-pane">
+                            <div class="tt-account-card">
+                                <img id="tt-modal-avatar" src="" alt="Profile">
+                                <div>
+                                    <h3 id="tt-modal-name">Loading...</h3>
+                                    <p id="tt-modal-email">loading@example.com</p>
+                                </div>
+                            </div>
+                            
+                            <div class="tt-setting-group" style="margin-top: 8px;">
+                                <a href="https://atikle.github.io/workspace/page?view=account-center" target="_blank" class="tt-btn-secondary">
+                                    <i class="fa-solid fa-user-cog"></i> Manage Account
+                                </a>
+                                <button id="tt-modal-logout" class="tt-btn-danger">
+                                    <i class="fa-solid fa-sign-out-alt"></i> Sign Out
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="tab-about" class="tt-tab-pane">
+                            <div class="tt-about-content">
+                                <i class="fa-solid fa-bookmark"></i>
+                                <h2>My Pocket</h2>
+                                <p class="version">Version 1.1.0</p>
+                                
+                                <div class="tt-about-footer">
+                                    <p>A personal space to save links, notes, and ideas.</p>
+                                    <p>&copy; 2026 Atikle. All rights reserved.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
             </div>
         </div>
     </div>
