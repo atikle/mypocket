@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MyPocket</title>
+
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#ef4056">
+    <link rel="apple-touch-icon" href="https://ui-avatars.com/api/?name=MP&background=ef4056&color=fff&size=192">
     
     <meta name="description" content="My Pocket - A personal space to save links, notes, and ideas, sorted and grouped by date.">
     <meta name="robots" content="index, follow">
@@ -1966,6 +1970,20 @@
             </div>
         </div>
     </div>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registered successfully with scope: ', registration.scope);
+                    })
+                    .catch(error => {
+                        console.error('ServiceWorker registration failed: ', error);
+                    });
+            });
+        }
+    </script>
 
 </body>
 </html>
