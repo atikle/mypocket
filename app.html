@@ -50,8 +50,7 @@
         onSnapshot, 
         query,
         getDocs,
-        setLogLevel,
-        getDoc // <-- ADD THIS IMPORT
+        setLogLevel
       } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
       // --- Global Firebase & State Variables ---
@@ -177,110 +176,55 @@
               db = getFirestore(app);
               setLogLevel('Debug'); // For easier debugging
               
-              // --- Helper Function for DOM Elements ---
-                const userAvatarBtn = document.getElementById('userAvatarBtn');
-                const headerAvatarImg = document.getElementById('headerAvatarImg');
-                const headerAvatarFallback = document.getElementById('headerAvatarFallback');
-                
-                const accountModalOverlay = document.getElementById('accountModalOverlay');
-                const closeAccountModalBtn = document.getElementById('closeAccountModalBtn');
-                const modalLogoutBtn = document.getElementById('modalLogoutBtn');
-                const modalUserName = document.getElementById('modalUserName');
-                const modalUserEmail = document.getElementById('modalUserEmail');
-                const modalAvatarImg = document.getElementById('modalAvatarImg');
-                const modalAvatarFallback = document.getElementById('modalAvatarFallback');
+              // Set up the main auth state listener
+              onAuthStateChanged(auth, async (user) => {
+                  if (user) {
+                      // --- User is LOGGED IN ---
+                      userId = user.uid;
+                      console.log('User is logged in:', userId);
+                      
+                      // Update UI
+                      mainContentContainer.style.display = 'block';
+                      loginPromptMessage.style.display = 'none';
+                      // Use email if available, otherwise just show user is logged in
+                      authStatusMessage.textContent = user.email ? `${user.email}` : 'Logged In';
+                      loginBtn.style.display = 'none';
+                      logoutBtn.style.display = 'block';
 
-                // --- Setup Auth State Listener ---
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        
-                        // Base UI update
-                        mainContentContainer.style.display = 'block';
-                        loginPromptMessage.style.display = 'none';
-                        loginBtn.style.display = 'none';
-                        userAvatarBtn.style.display = 'flex'; // Show avatar
+                      // Load UI preferences
+                      searchInput.value = localStorage.getItem(POCKET_SEARCH_KEY) || '';
+                      toggleClearSearchBtn();
+                      validateEmailModal();
 
-                        // Load UI preferences & listeners
-                        searchInput.value = localStorage.getItem(POCKET_SEARCH_KEY) || '';
-                        toggleClearSearchBtn();
-                        validateEmailModal();
-                        await setupFirestoreListener(appId, userId);
+                      // Setup REAL-TIME Firestore listener
+                      await setupFirestoreListener(appId, userId);
 
-                        // 1. Set fallback details from the Auth object
-                        let userName = user.displayName || 'User';
-                        let userEmail = user.email || '';
-                        let userPhoto = user.photoURL || null;
+                  } else {
+                      // --- User is LOGGED OUT ---
+                      console.log('User is signed out. Redirecting to atikle Single Sign-On');
+                      userId = null;
+                      
+                      // Detach old listener
+                      if (firestoreListenerUnsubscribe) {
+                          firestoreListenerUnsubscribe();
+                          firestoreListenerUnsubscribe = null;
+                      }
 
-                        // 2. Fetch primary details from Firestore Profile
-                        try {
-                            const userDocRef = doc(db, 'artifacts', appId, 'users', userId);
-                            const userDocSnap = await getDoc(userDocRef);
-                            if (userDocSnap.exists()) {
-                                const data = userDocSnap.data();
-                                if (data.name) userName = data.name;
-                                if (data.photoURL) userPhoto = data.photoURL;
-                            }
-                        } catch(e) {
-                            console.warn("Could not fetch extended user profile details", e);
-                        }
+                      // *** REDIRECT TO LOGIN PAGE ***
+                      // FIX: Use a valid relative URL path starting with './'
+                      window.location.href = 'https://atikle.github.io/account/login?app=mypocket';
+                    //   window.location.href = './login.html';
 
-                        // 3. Populate Header Avatar
-                        if (userPhoto) {
-                            headerAvatarImg.src = userPhoto;
-                            headerAvatarImg.style.display = 'block';
-                            headerAvatarFallback.style.display = 'none';
-                            
-                            modalAvatarImg.src = userPhoto;
-                            modalAvatarImg.style.display = 'block';
-                            modalAvatarFallback.style.display = 'none';
-                        } else {
-                            const initial = userName.charAt(0).toUpperCase();
-                            headerAvatarFallback.textContent = initial;
-                            headerAvatarFallback.style.display = 'flex';
-                            headerAvatarImg.style.display = 'none';
-                            
-                            modalAvatarFallback.textContent = initial;
-                            modalAvatarFallback.style.display = 'flex';
-                            modalAvatarImg.style.display = 'none';
-                        }
-
-                        // 4. Populate Modal Data
-                        modalUserName.textContent = userName;
-                        modalUserEmail.textContent = userEmail;
-
-                    } else {
-                        userId = null;
-                        if (firestoreListenerUnsubscribe) {
-                            firestoreListenerUnsubscribe();
-                            firestoreListenerUnsubscribe = null;
-                        }
-                        
-                        window.location.href = 'https://atikle.github.io/account/login?app=mypocket';
-                    }
-                });
-
-                // --- Account Modal Listeners ---
-                userAvatarBtn.addEventListener('click', () => {
-                    accountModalOverlay.classList.add('show');
-                    closeSettingsMenu();
-                });
-
-                closeAccountModalBtn.addEventListener('click', () => {
-                    accountModalOverlay.classList.remove('show');
-                });
-
-                accountModalOverlay.addEventListener('click', (e) => {
-                    if (e.target === accountModalOverlay) {
-                        accountModalOverlay.classList.remove('show');
-                    }
-                });
-
-                // --- Updated Logout Logic ---
-                modalLogoutBtn.addEventListener('click', () => {
-                    signOut(auth);
-                    accountModalOverlay.classList.remove('show');
-                });
+                      // The code below will likely not run, but it's good practice
+                      // to reset the UI in case the redirect fails.
+                      mainContentContainer.style.display = 'none';
+                      loginPromptMessage.style.display = 'block';
+                      authStatusMessage.textContent = '';
+                      loginBtn.style.display = 'block';
+                      logoutBtn.style.display = 'none';
+                      renderPocketGrid([]);
+                  }
+              });
 
           } catch (e) {
               console.error("Firebase Init Error:", e);
@@ -2064,118 +2008,6 @@ _          };
                 text-align: center;
             }
         }
-
-        /* --- Avatar & Account Modal Styles --- */
-        .avatar-btn {
-            background: var(--background-2);
-            border: 2px solid transparent;
-            padding: 0;
-            cursor: pointer;
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            overflow: hidden;
-            transition: all var(--transition-speed-fast) var(--ease-out-quad);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            box-shadow: var(--shadow-2);
-        }
-        .avatar-btn:hover {
-            border-color: var(--pocket-brand);
-            transform: scale(1.05);
-        }
-        .avatar-btn img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .avatar-fallback {
-            width: 100%;
-            height: 100%;
-            background-color: var(--pocket-brand);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            font-size: 16px;
-        }
-
-        .account-modal-content {
-            text-align: center;
-            padding: 40px 30px 30px;
-        }
-        .close-modal-btn {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: none;
-            border: none;
-            color: var(--text-color-2);
-            cursor: pointer;
-            font-size: 18px;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all var(--transition-speed-fast) ease-out;
-        }
-        .close-modal-btn:hover {
-            background-color: var(--hover-overlay);
-            color: var(--text-color-1);
-        }
-        .modal-avatar, .modal-avatar-fallback {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            margin: 0 auto 15px;
-            object-fit: cover;
-            border: 3px solid var(--background-2);
-            box-shadow: var(--shadow-2);
-        }
-        .modal-avatar-fallback {
-            background-color: var(--pocket-brand);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 32px;
-            font-weight: 600;
-        }
-        .modal-user-name {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 4px;
-            color: var(--text-color-1);
-        }
-        .modal-user-email {
-            font-size: 14px;
-            color: var(--text-color-2);
-            margin-bottom: 25px;
-        }
-        .modal-column-actions {
-            flex-direction: column;
-            gap: 12px;
-        }
-        .manage-btn {
-            text-decoration: none;
-            width: 100%;
-            padding: 12px;
-        }
-        .logout-modal-btn {
-            width: 100%;
-            padding: 12px;
-            color: var(--pocket-delete-bg);
-            border-color: rgba(231, 76, 60, 0.3);
-        }
-        .logout-modal-btn:hover {
-            background-color: rgba(231, 76, 60, 0.1);
-            border-color: var(--pocket-delete-bg);
-        }
     </style>
 </head>
 <body>
@@ -2189,11 +2021,10 @@ _          };
         <div class="header-controls">
             <!-- MOD: Auth Controls -->
             <div id="auth-controls">
-                <button id="userAvatarBtn" class="avatar-btn" style="display: none;" title="Account Menu" aria-label="Account Menu">
-                    <img id="headerAvatarImg" src="" alt="User Avatar" style="display: none;">
-                    <div id="headerAvatarFallback" class="avatar-fallback" style="display: none;"></div>
-                </button>
+                <span id="auth-status-message">Loading...</span>
+                <!-- This login button is a fallback, but will be hidden by JS -->
                 <button id="loginBtn" class="auth-btn">Log In</button>
+                <button id="logoutBtn" class="auth-btn">Log Out</button>
             </div>
             
             <button id="settingsBtn" class="header-btn" title="Settings" aria-label="Open settings menu" aria-haspopup="true" aria-expanded="false">
@@ -2288,27 +2119,6 @@ _          };
 
     <!-- Notification Toast element (Unchanged) -->
     <div class="notification-toast" id="notificationToast"></div>
-
-    <div class="modal-overlay" id="accountModalOverlay">
-        <div class="modal-content account-modal-content" id="accountModalContent" role="dialog" aria-modal="true">
-            <button class="close-modal-btn" id="closeAccountModalBtn" title="Close" aria-label="Close">
-                <i class="fa-solid fa-times"></i>
-            </button>
-            
-            <div class="account-profile-header">
-                <img id="modalAvatarImg" src="" alt="Profile Picture" class="modal-avatar" style="display: none;">
-                <div id="modalAvatarFallback" class="modal-avatar-fallback" style="display: none;"></div>
-                
-                <h3 id="modalUserName" class="modal-user-name">Loading...</h3>
-                <p id="modalUserEmail" class="modal-user-email">...</p>
-            </div>
-
-            <div class="modal-actions modal-column-actions">
-                <a href="https://atikle.github.io/workspace/page?view=account-center" class="modal-btn send-btn manage-btn">Manage Account</a>
-                <button type="button" class="modal-btn cancel-btn logout-modal-btn" id="modalLogoutBtn">Log Out</button>
-            </div>
-        </div>
-    </div>
 
     <!-- Email Modal (Unchanged) -->
     <div class="modal-overlay" id="emailModalOverlay">
