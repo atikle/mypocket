@@ -853,6 +853,15 @@
             document.querySelectorAll('.pocket-post-item.is-editing').forEach(itemEl => {
                 itemEl.classList.remove('is-editing');
                 itemEl.querySelector('.edit-textarea')?.remove(); 
+                
+                // Restore Delete Button icon and attributes
+                const deleteButton = itemEl.querySelector('.item-delete-btn');
+                const deleteBtnIcon = deleteButton?.querySelector('i');
+                if (deleteBtnIcon) {
+                    deleteBtnIcon.className = 'fas fa-trash';
+                    deleteButton.title = 'Delete';
+                }
+
                 const editButton = itemEl.querySelector('.item-edit-btn');
                 if (editButton) {
                     const truncatedText = itemEl.querySelector('.item-text')?.textContent.substring(0, 50) + '...' || 'item';
@@ -864,10 +873,20 @@
 
         // --- Event Delegation ---
         pocketGridContainer.addEventListener('click', (e) => {
+            
+            // Handle Delete / Cancel button click
             const deleteButton = e.target.closest('.item-delete-btn'); 
             if (deleteButton) {
                 const itemEl = deleteButton.closest('.pocket-post-item'); 
                 const itemId = itemEl.dataset.id; 
+                
+                // UX Enhancement: If editing, this button acts as "Cancel"
+                if (itemEl.classList.contains('is-editing')) {
+                    cancelAllEdits();
+                    return;
+                }
+                
+                // Otherwise, proceed with deletion fade-out
                 itemEl.classList.add('pocket-item-fade-out');
                 setTimeout(() => {
                     deletePocketItem(itemId);
@@ -875,11 +894,13 @@
                 return; 
             }
             
+            // Handle Edit / Save button click
             const editButton = e.target.closest('.item-edit-btn');
             if (editButton) {
                 const itemEl = editButton.closest('.pocket-post-item');
                 const itemId = itemEl.dataset.id; 
                 const isEditing = itemEl.classList.contains('is-editing');
+                const deleteBtnIcon = itemEl.querySelector('.item-delete-btn i');
                 
                 if (isEditing) {
                     const editTextArea = itemEl.querySelector('.edit-textarea');
@@ -889,14 +910,37 @@
                     cancelAllEdits();
                     const textDiv = itemEl.querySelector('.item-text');
                     const currentText = textDiv.textContent;
+                    
                     const editTextArea = document.createElement('textarea');
                     editTextArea.className = 'edit-textarea';
                     editTextArea.value = currentText;
+                    
+                    // Auto-resize trigger
                     editTextArea.addEventListener('input', () => autoResizeTextarea(editTextArea));
+                    
+                    // Pro Keyboard UX: Cmd/Ctrl+Enter to Save, Esc to Cancel
+                    editTextArea.addEventListener('keydown', (event) => {
+                        if (event.key === 'Escape') {
+                            event.preventDefault();
+                            cancelAllEdits();
+                        } else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+                            event.preventDefault();
+                            updatePocketItem(itemId, editTextArea.value);
+                        }
+                    });
+                    
                     itemEl.querySelector('.post-body').appendChild(editTextArea);
                     itemEl.classList.add('is-editing');
+                    
+                    // Transform Delete icon into a Close/Cancel icon dynamically
+                    if (deleteBtnIcon) {
+                        deleteBtnIcon.className = 'fas fa-xmark';
+                        itemEl.querySelector('.item-delete-btn').title = 'Cancel';
+                    }
+                    
                     autoResizeTextarea(editTextArea);
                     editTextArea.focus(); 
+                    
                     const truncatedText = currentText.length > 50 ? currentText.substring(0, 50) + '...' : currentText;
                     editButton.title = 'Save';
                     editButton.setAttribute('aria-label', `Save changes for: '${truncatedText}'`);
@@ -1527,15 +1571,14 @@
             border: 1px solid var(--border-color-1);
             border-radius: 8px;
             padding: 10px;
-            resize: vertical;
-            min-height: 80px;
-            max-height: 300px;
+            resize: none; /* Disable manual resize handle for a cleaner, unified look */
             overflow-y: auto; 
+            transition: border-color var(--transition-speed-fast) ease, box-shadow var(--transition-speed-fast) ease;
         }
         .edit-textarea:focus {
             outline: none;
             border-color: var(--pocket-edit);
-            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.3);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
         }
         .pocket-post-item.is-editing .item-text {
             display: none; 
@@ -1543,9 +1586,17 @@
         .pocket-post-item.is-editing .edit-textarea {
             display: block; 
         }
+        .pocket-post-item.is-editing .item-text,
+        .pocket-post-item.is-editing .item-search-btn {
+            display: none; 
+        }
         .pocket-post-item.is-editing .item-search-btn,
         .pocket-post-item.is-editing .item-delete-btn {
-            display: none; 
+            color: var(--text-color-2);
+        }
+        .pocket-post-item.is-editing .item-delete-btn:hover {
+            color: var(--pocket-error);
+            background-color: var(--hover-overlay);
         }
         .post-footer {
             padding: 8px 15px;
@@ -1594,9 +1645,6 @@
         }
         .pocket-post-item.is-editing .item-edit-btn:hover {
             color: var(--pocket-save); 
-        }
-        .item-delete-btn:hover {
-            color: var(--pocket-delete-bg);
         }
         .item-edit-btn .fa-save {
             display: none;
