@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
     <title>MyPocket</title>
 
     <link rel="manifest" href="manifest.json">
@@ -1010,7 +1010,7 @@
             transition: background-color var(--transition-speed-normal), color var(--transition-speed-normal);
         }
         body {
-            padding-top: 70px;
+            padding-top: calc(70px + env(safe-area-inset-top));
             display: flex;
             flex-direction: column;
             min-height: 100vh;
@@ -1030,6 +1030,21 @@
             top: 0;
             z-index: 100;
             border-bottom: 1px solid var(--border-color-1);
+        }
+
+        .app-header {
+            /* Keep your existing properties, but update padding */
+            padding: calc(15px + env(safe-area-inset-top)) 30px 15px;
+            padding-left: calc(30px + env(safe-area-inset-left));
+            padding-right: calc(30px + env(safe-area-inset-right));
+        }
+
+        @media (max-width: 640px) {
+            .app-header {
+                padding: calc(15px + env(safe-area-inset-top)) 20px 15px;
+                padding-left: calc(20px + env(safe-area-inset-left));
+                padding-right: calc(20px + env(safe-area-inset-right));
+            }
         }
         .app-header h1 {
             font-size: 24px;
@@ -1600,7 +1615,7 @@
             user-select: none;
         }
         .notification-toast.show {
-            bottom: 30px;
+            bottom: calc(30px + env(safe-area-inset-bottom));
         }
         .notification-toast.error {
             background-color: var(--pocket-error);
@@ -1745,6 +1760,14 @@
             background-color: var(--card-background-1);
             margin-top: 30px; 
         }
+
+        .app-footer {
+            /* Keep existing properties, update padding */
+            padding: 20px 30px calc(20px + env(safe-area-inset-bottom));
+            padding-left: calc(30px + env(safe-area-inset-left));
+            padding-right: calc(30px + env(safe-area-inset-right));
+        }
+
         .atikle {
             font-family: "Roboto", sans-serif;
         }
@@ -1774,7 +1797,7 @@
         
         /* --- Responsive --- */
         @media (max-width: 640px) {
-            body { padding-top: 70px; }
+            body { padding-top: calc(70px + env(safe-area-inset-top)); }
             .app-header {
                 padding: 15px 20px;
                 gap: 10px;
@@ -1848,7 +1871,7 @@
             .item-action-btn { opacity: 0.8; }
             .item-action-btn:hover { background-color: var(--hover-overlay); }
             .notification-toast.show {
-                bottom: 20px;
+                bottom: calc(20px + env(safe-area-inset-bottom));
                 width: 90vw;
                 text-align: center;
             }
