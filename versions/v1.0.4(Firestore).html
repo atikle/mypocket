@@ -3,15 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MyPocket</title>
-
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#ef4056">
-    <link rel="apple-touch-icon" href="https://ui-avatars.com/api/?name=MP&background=ef4056&color=fff&size=192">
+    <title>My Pocket</title>
     
+    <!-- SEO and Accessibility -->
     <meta name="description" content="My Pocket - A personal space to save links, notes, and ideas, sorted and grouped by date.">
     <meta name="robots" content="index, follow">
 
+    <!-- Favicon (inline SVG of the bookmark logo) -->
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512' fill='%23ef4056'%3E%3Cpath d='M0 48C0 21.5 21.5 0 48 0l0 48V441.4l130.1-92.9c8.3-5.9 19.6-5.9 27.9 0L336 441.4V48H48V0H336c26.5 0 48 21.5 48 48V488c0 22.1-23 36.5-42.4 25.8L192 397.1 42.4 513.8C23 524.5 0 510.1 0 488V48z'/%3E%3C/svg%3E">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,15 +17,23 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" media="print" onload="this.media='all'" />
     <noscript>
-      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     </noscript>
     
+    <!-- jsPDF library for PDF export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- QR Code generator library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     
+    <!-- 
+      ADD: FIREBASE SDKs
+      We are adding the Firebase SDKs for Authentication (auth) and
+      the Firestore Database (firestore).
+    -->
     <script type="module">
+      // This is the V11 modular SDK
       import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
       import { 
         getAuth, 
@@ -37,8 +43,7 @@
       import { 
         getFirestore, 
         collection, 
-        doc,
-        getDoc, 
+        doc, 
         addDoc, 
         deleteDoc, 
         updateDoc, 
@@ -51,20 +56,22 @@
       // --- Global Firebase & State Variables ---
       let db, auth, userId;
       let firestoreListenerUnsubscribe = null;
-      let currentPocketItems = []; 
-      let appId = 'default-app-id'; 
-      let notificationTimeout; 
+      let currentPocketItems = []; // Stores the current items for PDF/Email export
+      let appId = 'default-app-id'; // Default, will be replaced
+      let notificationTimeout; // For notification toast
 
-      // --- Storage Keys for UI Preferences ---
+      // --- Storage Keys for UI Preferences (Data is no longer in localStorage) ---
       const POCKET_SORT_KEY = "pocketSortPreference";
       const POCKET_SEARCH_KEY = "pocketSearchTerm";
+      const POCKET_TERMS_ACCEPTED_KEY = "pocketTermsAccepted";
       const POCKET_THEME_KEY = "theme";
 
       // --- DOM Elements ---
+      // ** MOVED DOM ELEMENTS UP so they exist before initFirebase() is called **
       const pocketGridContainer = document.getElementById('pocketGridContainer');
       const sortControlsContainer = document.querySelector('.sort-controls-container');
       const sortOptionsGroup = document.querySelector('.sort-options-group');
-      const emailListBtn = document.getElementById('emailListBtn');
+      const clearAllBtn = document.getElementById('clearAllBtn');
       const downloadPdfBtn = document.getElementById('downloadPdfBtn');
       const addItemForm = document.getElementById('addItemForm');
       const addItemInput = document.getElementById('addItemInput');
@@ -78,26 +85,30 @@
       const menuThemeText = document.getElementById('menuThemeText');
       const menuThemeState = document.getElementById('menuThemeState');
       
+      const jsonImportBtn = document.getElementById('jsonImportBtn');
+      const jsonExportBtn = document.getElementById('jsonExportBtn');
+      const jsonImportInput = document.getElementById('jsonImportInput');
       const menuDownloadPdfBtn = document.getElementById('menuDownloadPdfBtn');
-      const menuClearAllBtn = document.getElementById('menuClearAllBtn');
+      const menuEmailItemsBtn = document.getElementById('menuEmailItemsBtn');
 
-      // Account Modal DOM
-      const userProfileBtn = document.getElementById('userProfileBtn');
-      const headerAvatar = document.getElementById('headerAvatar');
-      const accountModalOverlay = document.getElementById('accountModalOverlay');
-      const closeAccountModalBtn = document.getElementById('closeAccountModalBtn');
-      const modalAvatar = document.getElementById('modalAvatar');
-      const modalName = document.getElementById('modalName');
-      const modalEmail = document.getElementById('modalEmail');
-      const modalLogoutBtn = document.getElementById('modalLogoutBtn');
+      const emailModalOverlay = document.getElementById('emailModalOverlay');
+      const emailModalForm = document.getElementById('emailModalForm');
+      const emailModalInput = document.getElementById('emailModalInput');
+      const emailTermsCheckbox = document.getElementById('emailTermsCheckbox');
+      const emailModalCancelBtn = document.getElementById('emailModalCancelBtn');
+      const emailModalSendBtn = document.getElementById('emailModalSendBtn');
 
       const notificationToast = document.getElementById('notificationToast');
-      const { jsPDF } = window.jspdf;
+      const { jsPDF } = window.jspdf; // PDF generation
 
       // Auth-related UI
+      const authStatusMessage = document.getElementById('auth-status-message');
       const loginBtn = document.getElementById('loginBtn');
+      const logoutBtn = document.getElementById('logoutBtn');
       const mainContentContainer = document.getElementById('mainContentContainer');
       const loginPromptMessage = document.getElementById('loginPromptMessage');
+      
+      // *** REMOVED ALL PASSWORDLESS-AUTH MODAL DOM ELEMENTS ***
       
       // --- Call initFirebase() AFTER globals and DOM elements are declared ---
       initFirebase();
@@ -120,6 +131,7 @@
           autoResizeTextarea(addItemInput);
       });
       
+      // --- Notification Logic (Unchanged) ---
       function showNotification(message, isError = false) {
           if (notificationTimeout) {
               clearTimeout(notificationTimeout);
@@ -134,20 +146,23 @@
       
       // --- Firebase Initialization & Auth Handling ---
       async function initFirebase() {
-          appId = typeof __app_id !== 'undefined' ? __app_id : 'atikle-v1'; 
+          appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
           
+          // User's Firebase Config:
           const firebaseConfig = {
-            apiKey: "AIzaSyCFBRUc8afjIrOtet57sltb8M1xrVR5R3c",
-            authDomain: "atikle-web.firebaseapp.com",
-            projectId: "atikle-web",
-            storageBucket: "atikle-web.firebasestorage.app",
-            messagingSenderId: "63074656402",
-            appId: "1:63074656402:web:0af9a3d0bba7cd7dc0464b",
-            measurementId: "G-38WD0DDG8E"
+            apiKey: "AIzaSyCiAI1AScqKoH7O6fJh4dCiwCUC2BUxd0U",
+            authDomain: "my-pocket-e547b.firebaseapp.com",
+            projectId: "my-pocket-e547b",
+            storageBucket: "my-pocket-e547b.firebasestorage.app",
+            messagingSenderId: "361442982929",
+            appId: "1:361442982929:web:7866e10593e54c75cec5b0",
+            measurementId: "G-X8JGLLE2PP"
           };
+          // END OF PASTED CONFIG
 
           if (!firebaseConfig.apiKey || !firebaseConfig.authDomain) {
               console.error("Firebase config is missing API key or Auth Domain.");
+              // Use the correct DOM elements now
               loginBtn.style.display = 'none';
               loginPromptMessage.textContent = "This app is not configured for login.";
               loginPromptMessage.style.display = 'block';
@@ -159,67 +174,54 @@
               const app = initializeApp(firebaseConfig);
               auth = getAuth(app);
               db = getFirestore(app);
-              setLogLevel('Debug');
+              setLogLevel('Debug'); // For easier debugging
               
+              // Set up the main auth state listener
               onAuthStateChanged(auth, async (user) => {
                   if (user) {
+                      // --- User is LOGGED IN ---
                       userId = user.uid;
                       console.log('User is logged in:', userId);
                       
                       // Update UI
                       mainContentContainer.style.display = 'block';
                       loginPromptMessage.style.display = 'none';
+                      // Use email if available, otherwise just show user is logged in
+                      authStatusMessage.textContent = user.email ? `${user.email}` : 'Logged In';
                       loginBtn.style.display = 'none';
-                      userProfileBtn.style.display = 'block';
-
-                      // Fetch User Profile Data for Modal & Avatar
-                      try {
-                          const userDocRef = doc(db, 'artifacts', 'atikle', 'users', userId);
-                          const userDocSnap = await getDoc(userDocRef);
-                          let displayName = user.displayName || 'User';
-                          let photoUrl = user.photoURL || '';
-
-                          if (userDocSnap.exists()) {
-                              const userData = userDocSnap.data();
-                              if (userData.name) displayName = userData.name;
-                              if (userData.photoURL) photoUrl = userData.photoURL;
-                          }
-
-                          // Fallback to UI Avatars if no photo URL exists
-                          if (!photoUrl) {
-                              photoUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
-                          }
-
-                          headerAvatar.src = photoUrl;
-                          modalAvatar.src = photoUrl;
-                          modalName.textContent = displayName;
-                          modalEmail.textContent = user.email || 'No Email';
-                      } catch (error) {
-                          console.error("Error fetching user profile:", error);
-                      }
+                      logoutBtn.style.display = 'block';
 
                       // Load UI preferences
                       searchInput.value = localStorage.getItem(POCKET_SEARCH_KEY) || '';
                       toggleClearSearchBtn();
+                      validateEmailModal();
 
                       // Setup REAL-TIME Firestore listener
                       await setupFirestoreListener(appId, userId);
 
                   } else {
+                      // --- User is LOGGED OUT ---
                       console.log('User is signed out. Redirecting to atikle Single Sign-On');
                       userId = null;
                       
+                      // Detach old listener
                       if (firestoreListenerUnsubscribe) {
                           firestoreListenerUnsubscribe();
                           firestoreListenerUnsubscribe = null;
                       }
 
-                      window.location.href = 'https://atikle.github.io/account/login?app=mypocket';
+                      // *** REDIRECT TO LOGIN PAGE ***
+                      // FIX: Use a valid relative URL path starting with './'
+                      window.location.href = 'https://atikle.github.io/account/v2.0.0.html?redirectUrl=https://atikle.github.io/mypocket/v2.0.0';
+                    //   window.location.href = './login.html';
 
+                      // The code below will likely not run, but it's good practice
+                      // to reset the UI in case the redirect fails.
                       mainContentContainer.style.display = 'none';
                       loginPromptMessage.style.display = 'block';
+                      authStatusMessage.textContent = '';
                       loginBtn.style.display = 'block';
-                      userProfileBtn.style.display = 'none';
+                      logoutBtn.style.display = 'none';
                       renderPocketGrid([]);
                   }
               });
@@ -230,39 +232,16 @@
           }
       }
 
-      // --- Account Modal Logic ---
-      function openAccountModal() {
-          accountModalOverlay.classList.add('show');
-      }
-      function closeAccountModal() {
-          accountModalOverlay.classList.remove('show');
-      }
-      
-      userProfileBtn.addEventListener('click', openAccountModal);
-      userProfileBtn.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              openAccountModal();
-          }
-      });
-      
-      closeAccountModalBtn.addEventListener('click', closeAccountModal);
-      accountModalOverlay.addEventListener('click', (e) => {
-          if (e.target === accountModalOverlay) closeAccountModal();
-      });
-      
-      modalLogoutBtn.addEventListener('click', () => {
-          closeAccountModal();
-          signOut(auth);
-      });
+      // --- REMOVED: Passwordless Auth Functions ---
+      // (handleLoginRedirect, sendLoginLink, showLoginModal, etc.)
 
-      // --- Firestore Data Functions ---
+      // --- ADD: Firestore Data Functions ---
       async function setupFirestoreListener(appId, uid) {
           if (firestoreListenerUnsubscribe) {
               firestoreListenerUnsubscribe();
           }
 
-          const itemsColRef = collection(db, 'artifacts', appId, 'users', uid, 'mypocket');
+          const itemsColRef = collection(db, 'artifacts', appId, 'users', uid, 'items');
           const q = query(itemsColRef);
 
           firestoreListenerUnsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -297,7 +276,7 @@
           };
 
           try {
-              const itemsColRef = collection(db, 'artifacts', appId, 'users', userId, 'mypocket');
+              const itemsColRef = collection(db, 'artifacts', appId, 'users', userId, 'items');
               await addDoc(itemsColRef, newItem);
               
               addItemInput.value = '';
@@ -321,7 +300,7 @@
           }
           
           try {
-              const itemRef = doc(db, 'artifacts', appId, 'users', userId, 'mypocket', itemId);
+              const itemRef = doc(db, 'artifacts', appId, 'users', userId, 'items', itemId);
               await deleteDoc(itemRef);
           } catch (error) {
               console.error("Error deleting document: ", error);
@@ -347,7 +326,7 @@
           };
 
           try {
-              const itemRef = doc(db, 'artifacts', appId, 'users', userId, 'mypocket', itemId);
+              const itemRef = doc(db, 'artifacts', appId, 'users', userId, 'items', itemId);
               await updateDoc(itemRef, updatedData);
           } catch (error) {
               console.error("Error updating document: ", error);
@@ -355,27 +334,18 @@
           }
       }
       
-      // --- Clear All Logic (In Settings Menu) ---
-      let clearAllTimeout;
-
-      function resetMenuClearAllBtn() {
-          menuClearAllBtn.innerHTML = '<i class="fa-solid fa-trash" aria-hidden="true"></i> Clear All Items';
-          menuClearAllBtn.classList.remove('confirm-active');
-      }
-
-      menuClearAllBtn.addEventListener('click', async (e) => {
-          e.stopPropagation(); 
+      clearAllBtn.addEventListener('click', async () => {
           if (!userId) {
               showNotification("You must be logged in to clear items.", true);
-              closeSettingsMenu();
               return;
           }
           
-          if (menuClearAllBtn.classList.contains('confirm-active')) {
-              menuClearAllBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Clearing...';
+          if (clearAllBtn.classList.contains('confirm-active')) {
+              clearAllBtn.disabled = true;
+              clearAllBtn.querySelector('.btn-text').textContent = 'Clearing...';
 
               try {
-                  const itemsColRef = collection(db, 'artifacts', appId, 'users', userId, 'mypocket');
+                  const itemsColRef = collection(db, 'artifacts', appId, 'users', userId, 'items');
                   const q = query(itemsColRef);
                   const querySnapshot = await getDocs(q);
 
@@ -386,39 +356,32 @@
                   
                   await Promise.all(deletePromises);
                   
-                  resetMenuClearAllBtn();
-                  closeSettingsMenu();
-                  showNotification("All items have been cleared.", false);
+                  resetClearAllBtn();
+                  clearAllBtn.disabled = false;
 
               } catch (error) {
                   console.error("Error clearing all items:", error);
                   showNotification("Error: Could not clear items.", true);
-                  resetMenuClearAllBtn();
+                  resetClearAllBtn();
+                  clearAllBtn.disabled = false;
               }
 
           } else {
-              menuClearAllBtn.classList.add('confirm-active');
-              menuClearAllBtn.innerHTML = '<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Are you sure?';
+              clearAllBtn.classList.add('confirm-active');
+              clearAllBtn.querySelector('.btn-text').textContent = 'Are you sure?';
               cancelAllEdits();
-              
-              clearTimeout(clearAllTimeout);
-              clearAllTimeout = setTimeout(() => {
-                  resetMenuClearAllBtn();
-              }, 3000);
           }
       });
 
-      // --- Settings Menu Logic ---
+      // --- Settings Menu Logic (Unchanged) ---
       function closeSettingsMenu() {
           settingsMenu.classList.remove('show');
           settingsBtn.setAttribute('aria-expanded', 'false');
-          resetMenuClearAllBtn();
       }
       settingsBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           const isShown = settingsMenu.classList.toggle('show');
           settingsBtn.setAttribute('aria-expanded', isShown);
-          if(!isShown) resetMenuClearAllBtn();
       });
       window.addEventListener('click', (e) => {
           if (!settingsMenu.contains(e.target) && !settingsBtn.contains(e.target)) {
@@ -432,7 +395,7 @@
           }
       });
 
-      // --- Theme Toggle Logic ---
+      // --- Theme Toggle Logic (Unchanged) ---
       function applyTheme(theme) {
           if (theme === 'dark') {
               document.documentElement.classList.add('dark');
@@ -460,32 +423,150 @@
           }
       });
       
-      // --- Direct Email Items Logic ---
-      async function emailItemsDirectly() {
-          if (!auth || !auth.currentUser || !auth.currentUser.email) {
-              showNotification("Error: No email address linked to your account.", true);
-              return;
-          }
+      // --- JSON Export Logic (Unchanged) ---
+      function exportToJson() {
+          const allItems = currentPocketItems;
+          const exportData = {
+              appIdentifier: { app: "mypocket", owner: "atikle" },
+              items: allItems.map(item => ({
+                  text: item.text,
+                  dateAdded: item.dateAdded,
+                  wasEdited: item.wasEdited
+              }))
+          };
+          const jsonString = JSON.stringify(exportData, null, 2);
+          const blob = new Blob([jsonString], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `mypocket_export_${new Date().toISOString().split('T')[0]}.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          showNotification('Items exported successfully!');
+          closeSettingsMenu();
+      }
+      jsonExportBtn.addEventListener('click', exportToJson);
+      jsonExportBtn.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') e.preventDefault(); exportToJson();
+      });
 
+      // --- JSON Import Logic (Unchanged) ---
+      function importFromJson(file) {
+          if (!file || !userId) {
+             showNotification("You must be logged in to import items.", true);
+             return;
+          }
+          const reader = new FileReader();
+          reader.onload = async (e) => {
+              try {
+                  const data = JSON.parse(e.target.result);
+                  if (!data.appIdentifier || data.appIdentifier.app !== 'mypocket') {
+                      throw new Error('Invalid or missing file identifier.');
+                  }
+                  if (!Array.isArray(data.items)) {
+                      throw new Error('Invalid data format: "items" is not an array.');
+                  }
+                  
+                  const itemsColRef = collection(db, 'artifacts', appId, 'users', userId, 'items');
+                  showNotification(`Importing ${data.items.length} items...`);
+                  
+                  const addPromises = data.items.map(item => {
+                      if (typeof item === 'object' && item !== null && 'text' in item && 'dateAdded' in item) {
+                           return addDoc(itemsColRef, {
+                               text: item.text,
+                               dateAdded: item.dateAdded,
+                               wasEdited: item.wasEdited || false
+                           });
+                      }
+                      return Promise.resolve();
+                  });
+                  await Promise.all(addPromises);
+                  
+                  localStorage.setItem(POCKET_SORT_KEY, 'latest');
+                  localStorage.setItem(POCKET_SEARCH_KEY, '');
+                  searchInput.value = '';
+                  toggleClearSearchBtn();
+                  cancelAllEdits();
+                  showNotification(`Successfully imported ${data.items.length} items.`);
+
+              } catch (err) {
+                  console.error('Import failed:', err);
+                  showNotification(`Import failed: ${err.message}`, true);
+              } finally {
+                  jsonImportInput.value = null;
+              }
+          };
+          reader.onerror = () => {
+              showNotification('Error reading file.', true);
+              jsonImportInput.value = null;
+_          };
+          reader.readAsText(file);
+          closeSettingsMenu();
+      }
+      jsonImportBtn.addEventListener('click', () => jsonImportInput.click());
+      jsonImportBtn.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') e.preventDefault(); jsonImportInput.click();
+      });
+      jsonImportInput.addEventListener('change', (e) => importFromJson(e.target.files[0]));
+      
+      // --- Email Modal Logic (Unchanged) ---
+      function validateEmailModal() {
+          const isEmailValid = emailModalInput.value.includes('@') && emailModalInput.value.length > 3;
+          const isTermsAccepted = emailTermsCheckbox.checked;
+          emailModalSendBtn.disabled = !(isEmailValid && isTermsAccepted);
+      }
+      emailModalInput.addEventListener('input', validateEmailModal);
+      emailTermsCheckbox.addEventListener('change', validateEmailModal);
+
+      function showEmailModal() {
           const items = currentPocketItems;
           if (items.length === 0) {
               showNotification("Your pocket is empty. Add some items first!", true);
               return;
           }
-          
-          const email = auth.currentUser.email;
+          const termsAccepted = localStorage.getItem(POCKET_TERMS_ACCEPTED_KEY) === 'true';
+          emailTermsCheckbox.checked = termsAccepted;
+          emailModalOverlay.classList.add('show');
+          emailModalInput.focus();
+          closeSettingsMenu();
+          validateEmailModal();
+      }
+      function hideEmailModal() {
+          emailModalOverlay.classList.remove('show');
+          emailModalInput.value = '';
+          emailModalSendBtn.classList.remove('loading');
+          validateEmailModal();
+      }
+      menuEmailItemsBtn.addEventListener('click', showEmailModal);
+      menuEmailItemsBtn.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') e.preventDefault(); showEmailModal();
+      });
+      emailModalCancelBtn.addEventListener('click', hideEmailModal);
+      emailModalOverlay.addEventListener('click', (e) => {
+          if (e.target === emailModalOverlay) {
+              hideEmailModal();
+          }
+      });
+      
+      emailModalForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
           const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyKVRgkVy0IOu-WdMKNFOwUA-uTd7TqvubWm0rlJPBDoTdby3-8KkBsWsDFiWPan7PHaA/exec';
-          
-          if (APPS_SCRIPT_URL.includes('PASTE_YOUR_DEPLOYED_WEB_APP_URL_HERE')) {
-              showNotification("Setup incomplete. Please update APPS_SCRIPT_URL in the HTML.", true);
+          if (!emailTermsCheckbox.checked || !emailModalInput.value.includes('@')) {
+              showNotification("Please enter a valid email and accept the terms.", true);
               return;
           }
-
-          const originalText = emailListBtn.querySelector('.btn-text').textContent;
-          emailListBtn.querySelector('.btn-text').textContent = 'Sending...';
-          emailListBtn.disabled = true;
-
+          const email = emailModalInput.value;
+          if (APPS_SCRIPT_URL.includes('PASTE_YOUR_DEPLOYED_WEB_APP_URL_HERE')) {
+              showNotification("Setup incomplete. Please update APPS_SCRIPT_URL in the HTML.", true);
+              hideEmailModal();
+              return;
+          }
+          emailModalSendBtn.classList.add('loading');
+          localStorage.setItem(POCKET_TERMS_ACCEPTED_KEY, 'true');
           try {
+              const items = currentPocketItems;
               const payloadItems = items.map(item => ({
                   text: item.text,
                   dateAdded: item.dateAdded,
@@ -495,26 +576,22 @@
                   email: email,
                   items: payloadItems
               };
-              
               await fetch(APPS_SCRIPT_URL, {
                   method: "POST",
                   headers: { "Content-Type": "text/plain" },
                   body: JSON.stringify(payload),
                   mode: 'no-cors'
               });
-              showNotification(`Items successfully sent to ${email}`);
+              showNotification(`Sending items to ${email}...`);
+              hideEmailModal();
           } catch (error) {
-              console.log('Apps Script fetch initiated:', error);
-              showNotification(`Items successfully sent to ${email}`);
-          } finally {
-              emailListBtn.querySelector('.btn-text').textContent = originalText;
-              emailListBtn.disabled = false;
+              console.log('Apps Script fetch initiated (errors are expected in no-cors mode):', error);
+              showNotification(`Sending items to ${email}...`);
+              hideEmailModal();
           }
-      }
+      });
 
-      emailListBtn.addEventListener('click', emailItemsDirectly);
-
-      // --- Sort Button Logic ---
+      // --- Sort Button Logic (Unchanged) ---
       sortControlsContainer.addEventListener('click', (e) => {
           const clickedButton = e.target.closest('.sort-btn');
           if (!clickedButton) return; 
@@ -531,6 +608,16 @@
           cancelAllEdits();
           renderPocketGrid(currentPocketItems);
       });
+
+      function resetClearAllBtn() {
+          clearAllBtn.classList.remove('confirm-active');
+          clearAllBtn.querySelector('.btn-text').textContent = clearAllBtn.dataset.defaultText;
+      }
+      clearAllBtn.addEventListener('mouseleave', () => {
+          if(clearAllBtn.classList.contains('confirm-active')) {
+              setTimeout(resetClearAllBtn, 2000); 
+          }
+      });
       
       function getSortedItems(items) {
           let sortedItems = [...items]; 
@@ -543,7 +630,7 @@
           return sortedItems;
       }
 
-      // --- Download PDF Logic ---
+      // --- Download PDF Logic (Unchanged) ---
       function generateAndDownloadPDF() {
           cancelAllEdits();
           console.log('Generating PDF...');
@@ -695,7 +782,7 @@
         });
 
 
-        // --- Render Logic ---
+        // --- Render Logic (Unchanged) ---
         function renderPocketGrid(items) {
             const isPocketEmpty = items.length === 0;
             const searchTerm = (localStorage.getItem(POCKET_SEARCH_KEY) || '').toLowerCase();
@@ -708,21 +795,18 @@
 
             if (isPocketEmpty) {
                 pocketGridContainer.innerHTML = '<p class="pocket-empty-message">You have not saved anything yet</p>';
-                emailListBtn.disabled = true;
-                emailListBtn.setAttribute('aria-disabled', 'true');
+                clearAllBtn.style.display = 'none'; 
+                clearAllBtn.setAttribute('aria-disabled', 'true');
                 downloadPdfBtn.disabled = true;
                 downloadPdfBtn.setAttribute('aria-disabled', 'true');
-                menuClearAllBtn.style.opacity = '0.5';
-                menuClearAllBtn.style.pointerEvents = 'none';
                 return;
             }
             
-            menuClearAllBtn.style.opacity = '1';
-            menuClearAllBtn.style.pointerEvents = 'auto';
+            clearAllBtn.style.display = ''; 
+            clearAllBtn.setAttribute('aria-disabled', 'false');
             downloadPdfBtn.disabled = filteredItems.length === 0;
             downloadPdfBtn.setAttribute('aria-disabled', filteredItems.length === 0);
-            emailListBtn.disabled = false;
-            emailListBtn.setAttribute('aria-disabled', 'false');
+            resetClearAllBtn(); 
             
             if (filteredItems.length === 0 && searchTerm) {
                 const messageP = document.createElement('p');
@@ -806,7 +890,8 @@
                         </div>
                     </div>
                     <div class="post-body">
-                        </div>
+                        <!-- Text will be appended here -->
+                    </div>
                     <div class="post-footer">
                         <div class="item-actions">
                             <a href="https://www.google.com/search?q=${encodeURIComponent(item.text)}" 
@@ -837,7 +922,7 @@
             });
         }
 
-        // --- Cancel All Edits Logic ---
+        // --- Cancel All Edits Logic (Unchanged) ---
         function cancelAllEdits() {
             document.querySelectorAll('.pocket-post-item.is-editing').forEach(itemEl => {
                 itemEl.classList.remove('is-editing');
@@ -851,7 +936,7 @@
             });
         }
 
-        // --- Event Delegation ---
+        // --- Event Delegation (Unchanged) ---
         pocketGridContainer.addEventListener('click', (e) => {
             const deleteButton = e.target.closest('.item-delete-btn'); 
             if (deleteButton) {
@@ -893,7 +978,7 @@
             }
         });
         
-        // --- Search Logic ---
+        // --- Search Logic (Unchanged) ---
         function toggleClearSearchBtn() {
             if (searchInput.value.length > 0) {
                 clearSearchBtn.style.display = 'flex';
@@ -916,7 +1001,7 @@
             searchInput.focus();
         });
         
-        // --- Real-time Sync Listener ---
+        // --- Real-time Sync Listener (Unchanged) ---
         window.addEventListener('storage', (e) => {
             if (e.key === POCKET_SORT_KEY) {
                 cancelAllEdits();
@@ -939,6 +1024,12 @@
             e.preventDefault();
             addNewPocketItem(addItemInput.value);
         });
+
+        // --- Auth UI Listeners ---
+        // ** Simplified: We only need a logout button listener **
+        logoutBtn.addEventListener('click', () => signOut(auth));
+        
+        // ** REMOVED: All listeners for the passwordless auth modal **
 
     </script>
     <style>
@@ -1004,6 +1095,7 @@
         }
 
         body, html {
+            height: 100%;
             font-family: 'Inter', sans-serif;
             background-color: var(--background-2);
             color: var(--text-color-1);
@@ -1014,7 +1106,6 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh;
-            overflow-x: hidden;
         }
 
         /* --- App Header --- */
@@ -1041,6 +1132,7 @@
             flex-shrink: 0;
         }
         
+        /* --- MOD: Auth Controls in Header --- */
         .header-controls {
             display: flex;
             align-items: center;
@@ -1057,7 +1149,18 @@
             margin-right: 10px;
         }
 
-        #loginBtn {
+        #auth-status-message {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-color-2);
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Simplified auth buttons */
+        #loginBtn, #logoutBtn {
             font-family: 'Inter', sans-serif;
             font-size: 14px;
             font-weight: 600;
@@ -1069,32 +1172,20 @@
             cursor: pointer;
             transition: all var(--transition-speed-fast) ease-out;
             white-space: nowrap;
-            display: none;
         }
-        #loginBtn:hover {
+        #logoutBtn {
+            background-color: transparent;
+            color: var(--pocket-brand);
+            border-color: var(--pocket-brand);
+        }
+        #loginBtn:hover, #logoutBtn:hover {
             opacity: 0.8;
         }
         
-        /* Account Profile Avatar in Header */
-        .user-profile-btn {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            overflow: hidden;
-            cursor: pointer;
-            border: 2px solid transparent;
-            transition: border-color var(--transition-speed-fast);
-            display: none;
-        }
-        .user-profile-btn:hover, .user-profile-btn:focus-visible {
-            border-color: var(--pocket-brand);
-            outline: none;
-        }
-        .user-profile-btn img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
+        #logoutBtn { display: none; } /* Hide logout by default */
+        #loginBtn { display: none; } /* Hide login by default */
+        /* --- END: Auth Controls --- */
+        
 
         .add-item-form {
             position: relative;
@@ -1115,6 +1206,7 @@
             box-shadow: var(--shadow-1); 
             min-height: 80px; 
             max-height: 500px;
+            min-width: 1000px;
             overflow-y: hidden;
         }
         .add-item-input:focus {
@@ -1211,7 +1303,7 @@
             width: 20px;
             text-align: center;
             font-size: 16px;
-            color: inherit;
+            color: var(--text-color-2);
         }
         .settings-menu-item.toggle-item {
             justify-content: space-between;
@@ -1225,14 +1317,6 @@
             height: 1px;
             background-color: var(--border-color-1);
             margin: 4px 0;
-        }
-
-        #menuClearAllBtn {
-            color: var(--pocket-error);
-        }
-        #menuClearAllBtn.confirm-active {
-            background-color: var(--pocket-error);
-            color: white;
         }
 
         .month-header {
@@ -1256,12 +1340,13 @@
             flex-grow: 1; 
         }
         
+        /* --- MOD: Auth-related UI --- */
         #mainContentContainer {
-            display: none; 
+            display: none; /* Hide main content by default */
         }
         
         #loginPromptMessage {
-            display: block;
+            display: block; /* Show by default */
             font-size: 18px;
             font-weight: 500;
             color: var(--text-color-2);
@@ -1269,7 +1354,9 @@
             margin-top: 10vh;
             padding: 20px;
         }
+        /* --- END: Auth-related UI --- */
         
+
         .search-container {
             position: relative;
             margin-bottom: 20px;
@@ -1399,17 +1486,25 @@
             color: var(--card-background-1);
             border-color: var(--text-color-2);
         }
-        
-        .sort-btn.email-btn {
+        .sort-btn.clear-btn {
             background-color: transparent;
-            border-color: var(--pocket-edit);
-            color: var(--pocket-edit);
+            border-color: var(--pocket-delete-bg);
+            color: var(--pocket-delete-bg);
         }
-        .sort-btn.email-btn:hover:not(:disabled) {
-            background-color: var(--pocket-edit);
+        .sort-btn.clear-btn:hover:not(:disabled) { 
+            background-color: var(--pocket-delete-bg);
             color: white;
         }
-
+        .sort-btn.clear-btn.confirm-active {
+            background-color: var(--pocket-delete-bg);
+            color: white;
+        }
+        .sort-btn.clear-btn.confirm-active .btn-text {
+            display: inline;
+        }
+        .sort-btn.clear-btn.confirm-active i {
+            display: none;
+        }
         .sort-btn .btn-text {
             margin-left: 6px;
         }
@@ -1427,7 +1522,7 @@
             gap: 20px; 
         }
 
-        /* --- Post Item Styles --- */
+        /* --- Post Item Styles (Unchanged) --- */
         .pocket-post-item {
             background: var(--card-background-1);
             border-radius: 12px;
@@ -1574,6 +1669,7 @@
             opacity: 0;
             transform: scale(0.95); 
         }
+        /* --- END: Post Styles --- */
 
         .pocket-empty-message {
             font-size: 18px;
@@ -1582,7 +1678,7 @@
             margin-top: 50px;
         }
 
-        /* --- Notification Toast --- */
+        /* --- Notification Toast (Unchanged) --- */
         .notification-toast {
             position: fixed;
             bottom: -100px;
@@ -1646,6 +1742,75 @@
             opacity: 1;
             transform: translate(-50%, -50%);
         }
+        .modal-content h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .modal-content p {
+            font-size: 15px;
+            color: var(--text-color-2);
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        .modal-form-group {
+            margin-bottom: 20px;
+        }
+        .modal-form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--text-color-1);
+        }
+        .modal-input {
+            width: 100%;
+            padding: 10px 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            border: 1px solid var(--border-color-1);
+            border-radius: 8px;
+            background-color: var(--background-2);
+            color: var(--text-color-1);
+            transition: all var(--transition-speed-fast) ease-out;
+        }
+        .modal-input:focus {
+            outline: none;
+            border-color: var(--pocket-brand);
+            box-shadow: 0 0 0 3px rgba(239, 64, 86, 0.3);
+        }
+        .modal-form-group.checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .modal-checkbox {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            accent-color: var(--pocket-brand);
+        }
+        .modal-form-group.checkbox-group label {
+            font-size: 13px;
+            font-weight: 400;
+            color: var(--text-color-2);
+            margin-bottom: 0;
+            line-height: 1.4;
+        }
+        .terms-link {
+            color: var(--pocket-brand);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .terms-link:hover {
+            text-decoration: underline;
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
         .modal-btn {
             font-family: 'Inter', sans-serif;
             font-size: 15px;
@@ -1659,76 +1824,55 @@
             align-items: center;
             justify-content: center;
         }
-
-        /* --- Account Modal Styles --- */
-        .account-modal {
-            text-align: center;
-            padding: 30px 20px;
-            max-width: 350px;
-        }
-        .close-modal-btn {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: none;
-            border: none;
-            font-size: 18px;
-            color: var(--text-color-2);
-            cursor: pointer;
-            transition: color var(--transition-speed-fast);
-        }
-        .close-modal-btn:hover {
-            color: var(--text-color-1);
-        }
-        .account-profile-info {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-bottom: 25px;
-        }
-        .modal-avatar-img {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            object-fit: cover;
-            margin-bottom: 15px;
-            border: 2px solid var(--border-color-1);
-        }
-        .modal-user-name {
-            font-size: 20px;
-            font-weight: 600;
-            color: var(--text-color-1);
-            margin-bottom: 5px;
-        }
-        .modal-user-email {
-            font-size: 14px;
-            color: var(--text-color-2);
-        }
-        .account-modal-links {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .manage-account-btn {
+        .modal-btn.cancel-btn {
             background-color: var(--background-2);
             color: var(--text-color-1);
             border: 1px solid var(--border-color-1);
-            text-decoration: none;
         }
-        .manage-account-btn:hover {
+        .modal-btn.cancel-btn:hover {
             background-color: var(--hover-overlay);
         }
-        .logout-account-btn {
-            background-color: transparent;
-            color: var(--pocket-error);
-            border: 1px solid var(--pocket-error);
-        }
-        .logout-account-btn:hover {
-            background-color: var(--pocket-error);
+        .modal-btn.send-btn {
+            background-color: var(--pocket-brand);
             color: white;
+            min-width: 80px;
         }
+        .modal-btn.send-btn:hover {
+            opacity: 0.85;
+        }
+        .modal-btn.send-btn:disabled {
+            background-color: var(--text-color-2);
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .modal-btn.send-btn:disabled:hover {
+            opacity: 0.5;
+        }
+        .modal-btn .btn-text {
+            display: inline;
+        }
+        .modal-btn .btn-spinner {
+            display: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: modal-spinner 0.6s linear infinite;
+        }
+        .modal-btn.loading .btn-text {
+            display: none;
+        }
+        .modal-btn.loading .btn-spinner {
+            display: block;
+        }
+        @keyframes modal-spinner {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* --- REMOVED: Auth Modal Specific Styles --- */
 
-        /* --- Footer --- */
+        /* --- Footer (Unchanged) --- */
         .app-footer {
             text-align: left;
             padding: 20px 30px;
@@ -1772,7 +1916,7 @@
             text-decoration: underline;
         }
         
-        /* --- Responsive --- */
+        /* --- Responsive (Unchanged) --- */
         @media (max-width: 640px) {
             body { padding-top: 70px; }
             .app-header {
@@ -1783,7 +1927,10 @@
             .app-header h1 {
                 font-size: 20px;
             }
-            #loginBtn {
+            #auth-status-message {
+                display: none;
+            }
+            #loginBtn, #logoutBtn {
                 padding: 6px 12px;
                 font-size: 13px;
             }
@@ -1794,6 +1941,8 @@
             .app-header h1 { flex-grow: 0; }
             .main-container { margin: 20px auto; }
             .add-item-input {
+                min-width:  90vw;
+                max-width:  90vw;
                 font-size: 14px;
                 padding: 10px 16px; 
                 min-height: 70px; 
@@ -1837,12 +1986,18 @@
                 padding: 6px 12px;
             }
             .sort-btn.download-btn .btn-text,
-            .sort-btn.email-btn .btn-text {
+            .sort-btn.clear-btn .btn-text {
                 display: none;
             }
             .sort-btn.download-btn,
-            .sort-btn.email-btn {
+            .sort-btn.clear-btn {
                 padding: 6px 12px; 
+            }
+            .sort-btn.clear-btn.confirm-active {
+                padding: 6px 12px;
+            }
+            .sort-btn.clear-btn.confirm-active .btn-text {
+                display: inline;
             }
             #pocketGridContainer { gap: 15px; }
             .item-action-btn { opacity: 0.8; }
@@ -1864,11 +2019,12 @@
         </h1>
         
         <div class="header-controls">
+            <!-- MOD: Auth Controls -->
             <div id="auth-controls">
+                <span id="auth-status-message">Loading...</span>
+                <!-- This login button is a fallback, but will be hidden by JS -->
                 <button id="loginBtn" class="auth-btn">Log In</button>
-                <div id="userProfileBtn" class="user-profile-btn" aria-label="Open Account Menu" role="button" tabindex="0">
-                    <img id="headerAvatar" src="" alt="Profile">
-                </div>
+                <button id="logoutBtn" class="auth-btn">Log Out</button>
             </div>
             
             <button id="settingsBtn" class="header-btn" title="Settings" aria-label="Open settings menu" aria-haspopup="true" aria-expanded="false">
@@ -1888,20 +2044,30 @@
                     <i class="fa-solid fa-file-pdf" aria-hidden="true"></i>
                     Download PDF
                 </div>
+                <div class="settings-menu-item" id="menuEmailItemsBtn" role="menuitem" tabindex="0">
+                    <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
+                    Email My Items
+                </div>
                 <div class="settings-menu-divider"></div>
-                <div class="settings-menu-item" id="menuClearAllBtn" role="menuitem" tabindex="0">
-                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
-                    Clear All Items
+                <div class="settings-menu-item" id="jsonImportBtn" role="menuitem" tabindex="0">
+                    <i class="fa-solid fa-upload" aria-hidden="true"></i>
+                    Import backup
+                </div>
+                <div class="settings-menu-item" id="jsonExportBtn" role="menuitem" tabindex="0">
+                    <i class="fa-solid fa-download" aria-hidden="true"></i>
+                    Export backup
                 </div>
             </div>
         </div>
     </header>
 
     <div class="main-container">
+        <!-- MOD: Login Prompt -->
         <div id="loginPromptMessage">
             Connecting to login service...
         </div>
         
+        <!-- MOD: Main Content Wrapper -->
         <div id="mainContentContainer">
             <form class="add-item-form" id="addItemForm">
                 <label for="addItemInput" class="visually-hidden">Add new item</label>
@@ -1930,15 +2096,16 @@
                         <i class="fa-solid fa-download" aria-hidden="true"></i>
                         <span class="btn-text">Download</span>
                     </button>
-                    <button class="sort-btn email-btn" id="emailListBtn">
-                        <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
-                        <span class="btn-text">Email</span>
+                    <button class="sort-btn clear-btn" id="clearAllBtn" data-default-text="Clear All">
+                        <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                        <span class="btn-text">Clear All</span>
                     </button>
                 </div>
             </div>
 
             <div id="pocketGridContainer">
-                </div>
+                <!-- Saved items will be dynamically added here from Firestore -->
+            </div>
         </div>
     </div>
     
@@ -1947,40 +2114,43 @@
         <a href="https://atikle.github.io/terms/mypocket" class="footer-link" id="termsLink">Terms & Conditions</a>
     </footer>
 
+    <!-- Hidden file input for JSON import (Unchanged) -->
+    <input type="file" id="jsonImportInput" accept=".json" class="visually-hidden">
+
+    <!-- Notification Toast element (Unchanged) -->
     <div class="notification-toast" id="notificationToast"></div>
 
-    <div class="modal-overlay" id="accountModalOverlay">
-        <div class="modal-content account-modal" id="accountModalContent" role="dialog" aria-modal="true">
-            <button class="close-modal-btn" id="closeAccountModalBtn" aria-label="Close Account Menu"><i class="fa-solid fa-times"></i></button>
-            <div class="account-profile-info">
-                <img id="modalAvatar" src="" alt="Profile Picture" class="modal-avatar-img">
-                <h3 id="modalName" class="modal-user-name">Loading...</h3>
-                <p id="modalEmail" class="modal-user-email">loading@example.com</p>
-            </div>
-            <div class="account-modal-links">
-                <a href="https://atikle.github.io/workspace/page?view=account-center" class="modal-btn manage-account-btn">
-                    Manage Account
-                </a>
-                <button id="modalLogoutBtn" class="modal-btn logout-account-btn">
-                    <i class="fa-solid fa-sign-out-alt"></i> Log Out
-                </button>
-            </div>
+    <!-- Email Modal (Unchanged) -->
+    <div class="modal-overlay" id="emailModalOverlay">
+        <div class="modal-content" id="emailModalContent" role="dialog" aria-labelledby="emailModalTitle" aria-modal="true">
+            <h3 id="emailModalTitle">Email Your Pocket Items</h3>
+            <p>Enter your email address to receive a copy of all your saved items.</p>
+            <form id="emailModalForm">
+                <div class="modal-form-group">
+                    <label for="emailModalInput">Email Address</label>
+                    <input type="email" id="emailModalInput" class="modal-input" placeholder="you@example.com" required>
+                </div>
+                <div class="modal-form-group checkbox-group">
+                    <input type="checkbox" id="emailTermsCheckbox" class="modal-checkbox">
+                    <label for="emailTermsCheckbox">
+                        I agree to the 
+                        <a href="https://atikle.github.io/terms/mypocket" target="_blank" rel="noopener noreferrer" class="terms-link">
+                            Terms & Privacy Policy
+                        </a>
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="modal-btn cancel-btn" id="emailModalCancelBtn">Cancel</button>
+                    <button type="submit" class="modal-btn send-btn" id="emailModalSendBtn">
+                        <span class="btn-text">Send</span>
+                        <span class="btn-spinner"></span>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
-
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(registration => {
-                        console.log('ServiceWorker registered successfully with scope: ', registration.scope);
-                    })
-                    .catch(error => {
-                        console.error('ServiceWorker registration failed: ', error);
-                    });
-            });
-        }
-    </script>
+    
+    <!-- REMOVED: Auth Modal (for Passwordless Email Link) -->
 
 </body>
 </html>
