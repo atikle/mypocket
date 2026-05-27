@@ -4,8 +4,8 @@
   "start_url": "./app",
   "display": "standalone",
   "scope": "./",
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "theme_color": "#ffffff",
+  "background_color": "#f0f2f5",
   "description": "A personal space to save links, notes, and ideas, sorted and grouped by date.",
   "icons": [
     {

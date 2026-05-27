@@ -6,7 +6,10 @@
     <title>MyPocket</title>
 
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#ef4056">
+    <meta name="theme-color" content="#ffffff" id="theme-color-meta">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
     <link rel="apple-touch-icon" href="https://ui-avatars.com/api/?name=MP&background=ef4056&color=fff&size=192">
     
     <meta name="description" content="My Pocket - A personal space to save links, notes, and ideas, sorted and grouped by date.">
@@ -433,22 +436,30 @@
       });
 
       // --- Theme Toggle Logic ---
-      function applyTheme(theme) {
-          if (theme === 'dark') {
-              document.documentElement.classList.add('dark');
-              menuThemeIcon.classList.remove('fa-sun');
-              menuThemeIcon.classList.add('fa-moon');
-              menuThemeText.textContent = 'Dark Mode';
-              menuThemeState.textContent = 'On';
-          } else {
-              document.documentElement.classList.remove('dark');
-              menuThemeIcon.classList.remove('fa-moon');
-              menuThemeIcon.classList.add('fa-sun');
-              menuThemeText.textContent = 'Light Mode';
-              menuThemeState.textContent = 'Off';
-          }
-          localStorage.setItem(POCKET_THEME_KEY, theme);
-      }
+    function applyTheme(theme) {
+        const themeColorMeta = document.getElementById('theme-color-meta');
+
+        if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+            menuThemeIcon.classList.remove('fa-sun');
+            menuThemeIcon.classList.add('fa-moon');
+            menuThemeText.textContent = 'Dark Mode';
+            menuThemeState.textContent = 'On';
+            
+            // Match the dark mode header color (--card-background-1)
+            if (themeColorMeta) themeColorMeta.setAttribute('content', '#242526'); 
+        } else {
+            document.documentElement.classList.remove('dark');
+            menuThemeIcon.classList.remove('fa-moon');
+            menuThemeIcon.classList.add('fa-sun');
+            menuThemeText.textContent = 'Light Mode';
+            menuThemeState.textContent = 'Off';
+            
+            // Match the light mode header color (--card-background-1)
+            if (themeColorMeta) themeColorMeta.setAttribute('content', '#ffffff');
+        }
+        localStorage.setItem(POCKET_THEME_KEY, theme);
+    }
       menuDarkModeToggle.addEventListener('click', () => {
           let theme = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
           applyTheme(theme);
