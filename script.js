@@ -74,16 +74,26 @@ const mainContentContainer = document.getElementById('mainContentContainer');
 const loginPromptMessage = document.getElementById('loginPromptMessage');
 
 // --- Rich Text Toolbar Logic ---
-document.addEventListener('click', (e) => {
+// We use 'mousedown' instead of 'click' so the button doesn't steal focus from the text area.
+document.addEventListener('mousedown', (e) => {
     const btn = e.target.closest('.editor-toolbar button');
     if (!btn) return;
-    e.preventDefault();
+    
+    // CRITICAL: This prevents the text area from losing focus and clearing your highlight!
+    e.preventDefault(); 
     
     const cmd = btn.dataset.cmd;
     const val = btn.dataset.val || null;
     
-    // Execute rich text commands across highlighted selections
+    // Execute rich text commands on the currently selected text
     document.execCommand(cmd, false, val);
+});
+
+// Prevent form submission if a toolbar button is clicked (in case mousedown doesn't catch the click action on some devices)
+document.addEventListener('click', (e) => {
+    if (e.target.closest('.editor-toolbar button')) {
+        e.preventDefault();
+    }
 });
 
 function showNotification(message, isError = false) {
