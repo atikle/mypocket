@@ -1094,58 +1094,57 @@
                 right: calc(20px + env(safe-area-inset-right));
             }
         }
-        /* --- Masonry Grid View --- */
+        /* --- Grid View --- */
         #pocketGridContainer.grid-view {
-            display: block; /* Overrides the default flexbox */
-            column-count: 2;
-            column-gap: 15px;
+            display: grid;
+            /* Auto-fills left-to-right. Cards are at least 280px wide on desktop */
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            align-items: start; /* Prevents short cards from stretching vertically to match tall cards */
+        }
+
+        /* Ensure Month Headers break the grid and span the entire row */
+        #pocketGridContainer.grid-view .month-header {
+            grid-column: 1 / -1;
+            margin-top: 20px;
+            margin-bottom: 5px;
         }
 
         #pocketGridContainer.grid-view .pocket-post-item {
-            break-inside: avoid; /* Prevents cards from splitting between columns */
-            margin-bottom: 15px; /* Replaces flex 'gap' */
-            display: inline-block; /* Safari fix for break-inside */
+            max-height: 350px; /* Limit the max height of the card on desktop */
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 0; /* Removing the flexbox gap from list view */
             width: 100%;
         }
 
-        /* Make sure month headers span across all columns */
-        #pocketGridContainer.grid-view .month-header {
-            column-span: all; 
-            margin-top: 20px;
-            margin-bottom: 15px;
+        /* Make the content area scrollable if the note hits the max height */
+        #pocketGridContainer.grid-view .post-body {
+            overflow-y: auto;
+            flex-grow: 1;
+            scrollbar-width: none; /* Hide scrollbar for Firefox */
         }
-
-        /* Tablet & Desktop Layouts */
-        @media (min-width: 641px) {
-            #pocketGridContainer.grid-view {
-                column-count: 3;
-                column-gap: 20px;
-            }
-            #pocketGridContainer.grid-view .pocket-post-item {
-                margin-bottom: 20px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            #pocketGridContainer.grid-view {
-                column-count: 4;
-            }
+        #pocketGridContainer.grid-view .post-body::-webkit-scrollbar {
+            display: none; /* Hide scrollbar for Chrome/Safari/Edge */
         }
 
         /* Mobile Tweaks */
         @media (max-width: 640px) {
             #pocketGridContainer.grid-view {
-                column-count: 2;
-                column-gap: 10px;
+                /* Force exactly 2 columns side-by-side on mobile */
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
             }
+            
             #pocketGridContainer.grid-view .pocket-post-item {
-                margin-bottom: 10px;
+                max-height: 250px; /* Slightly shorter max-height for mobile screens */
             }
-            /* Ensure action buttons don't get squished in mobile grid */
+            
+            /* Ensure action buttons don't get squished in the smaller grid */
             #pocketGridContainer.grid-view .post-footer .item-actions {
                 flex-wrap: wrap; 
                 justify-content: space-around;
-                width: 100%;
+                gap: 4px;
             }
         }
     </style>
