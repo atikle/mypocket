@@ -1094,6 +1094,60 @@
                 right: calc(20px + env(safe-area-inset-right));
             }
         }
+        /* --- Masonry Grid View --- */
+        #pocketGridContainer.grid-view {
+            display: block; /* Overrides the default flexbox */
+            column-count: 2;
+            column-gap: 15px;
+        }
+
+        #pocketGridContainer.grid-view .pocket-post-item {
+            break-inside: avoid; /* Prevents cards from splitting between columns */
+            margin-bottom: 15px; /* Replaces flex 'gap' */
+            display: inline-block; /* Safari fix for break-inside */
+            width: 100%;
+        }
+
+        /* Make sure month headers span across all columns */
+        #pocketGridContainer.grid-view .month-header {
+            column-span: all; 
+            margin-top: 20px;
+            margin-bottom: 15px;
+        }
+
+        /* Tablet & Desktop Layouts */
+        @media (min-width: 641px) {
+            #pocketGridContainer.grid-view {
+                column-count: 3;
+                column-gap: 20px;
+            }
+            #pocketGridContainer.grid-view .pocket-post-item {
+                margin-bottom: 20px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            #pocketGridContainer.grid-view {
+                column-count: 4;
+            }
+        }
+
+        /* Mobile Tweaks */
+        @media (max-width: 640px) {
+            #pocketGridContainer.grid-view {
+                column-count: 2;
+                column-gap: 10px;
+            }
+            #pocketGridContainer.grid-view .pocket-post-item {
+                margin-bottom: 10px;
+            }
+            /* Ensure action buttons don't get squished in mobile grid */
+            #pocketGridContainer.grid-view .post-footer .item-actions {
+                flex-wrap: wrap; 
+                justify-content: space-around;
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1156,6 +1210,9 @@
                 <div class="sort-options-group" role="group" aria-label="Sort items">
                     <button class="sort-btn active" data-sort="latest" aria-pressed="true">Latest</button>
                     <button class="sort-btn" data-sort="oldest" aria-pressed="false">Oldest</button>
+                    <button class="sort-btn" id="viewToggleBtn" aria-label="Toggle View" title="Switch to Grid View">
+                        <i class="fa-solid fa-table-cells-large"></i>
+                    </button>
                 </div>
                 <div class="sort-actions-group" role="group" aria-label="Page actions">
                     <button class="sort-btn download-btn" id="downloadPdfBtn">

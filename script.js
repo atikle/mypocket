@@ -31,6 +31,7 @@ let notificationTimeout;
 const POCKET_SORT_KEY = "pocketSortPreference";
 const POCKET_SEARCH_KEY = "pocketSearchTerm";
 const POCKET_THEME_KEY = "theme";
+const POCKET_VIEW_KEY = "pocketViewMode";
 const CACHED_ITEMS_KEY = "pocketCachedItems"; 
 const CACHED_USER_KEY = "pocketCachedUser";   
 
@@ -38,12 +39,14 @@ const CACHED_USER_KEY = "pocketCachedUser";
 const pocketGridContainer = document.getElementById('pocketGridContainer');
 const sortControlsContainer = document.querySelector('.sort-controls-container');
 const sortOptionsGroup = document.querySelector('.sort-options-group');
+const viewToggleBtn = document.getElementById('viewToggleBtn');
 const emailListBtn = document.getElementById('emailListBtn');
 const downloadPdfBtn = document.getElementById('downloadPdfBtn');
 const addItemForm = document.getElementById('addItemForm');
 const addItemInput = document.getElementById('addItemInput');
 const searchInput = document.getElementById('searchInput');
 const clearSearchBtn = document.getElementById('clearSearchBtn');
+
 // Mobile Editor Elements
 const mobileFab = document.getElementById('mobileFab');
 const mobileEditorModal = document.getElementById('mobileEditorModal');
@@ -88,27 +91,58 @@ function triggerHaptic(duration = 10) {
 }
 
 // --- Rich Text Toolbar Logic ---
-// We use 'mousedown' instead of 'click' so the button doesn't steal focus from the text area.
 document.addEventListener('mousedown', (e) => {
     const btn = e.target.closest('.editor-toolbar button');
     if (!btn) return;
     
-    // CRITICAL: This prevents the text area from losing focus and clearing your highlight!
     e.preventDefault(); 
     
     const cmd = btn.dataset.cmd;
     const val = btn.dataset.val || null;
     
-    // Execute rich text commands on the currently selected text
     document.execCommand(cmd, false, val);
 });
 
-// Prevent form submission if a toolbar button is clicked (in case mousedown doesn't catch the click action on some devices)
 document.addEventListener('click', (e) => {
     if (e.target.closest('.editor-toolbar button')) {
         e.preventDefault();
     }
 });
+
+// --- Rich Text Paste Sanitizer ---
+function sanitizePastedContent(e) {
+    e.preventDefault();
+    
+    const clipboardData = e.clipboardData || window.clipboardData;
+    const pastedHtml = clipboardData.getData('text/html');
+    const pastedText = clipboardData.getData('text/plain');
+
+    if (pastedHtml) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(pastedHtml, 'text/html');
+        
+        const elements = doc.body.querySelectorAll('*');
+        elements.forEach(el => {
+            el.removeAttribute('style');
+            el.removeAttribute('class');
+            el.removeAttribute('id');
+            el.removeAttribute('data-darkreader-inline-color'); 
+            el.removeAttribute('data-darkreader-inline-bgcolor');
+            
+            if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE') {
+                el.remove();
+            }
+        });
+        
+        document.execCommand('insertHTML', false, doc.body.innerHTML);
+    } else {
+        document.execCommand('insertText', false, pastedText);
+    }
+}
+
+addItemInput.addEventListener('paste', sanitizePastedContent);
+mobileEditorInput.addEventListener('paste', sanitizePastedContent);
+
 
 function showNotification(message, isError = false) {
     if (notificationTimeout) {
@@ -149,7 +183,6 @@ async function initFirebase() {
         const app = initializeApp(firebaseConfig);
         auth = getAuth(app);
         
-        // ENABLE FIRESTORE OFFLINE PERSISTENCE
         db = initializeFirestore(app, {
             localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
         });
@@ -162,13 +195,11 @@ async function initFirebase() {
                 console.log('User is logged in:', userId);
                 localStorage.setItem(CACHED_USER_KEY, "true"); 
 
-                // Update UI
                 mainContentContainer.style.display = 'block';
                 loginPromptMessage.style.display = 'none';
                 loginBtn.style.display = 'none';
                 userProfileBtn.style.display = 'block';
 
-                // Fetch User Profile Data for Modal & Avatar
                 try {
                     const userDocRef = doc(db, 'artifacts', 'atikle', 'users', userId);
                     const userDocSnap = await getDoc(userDocRef);
@@ -204,7 +235,6 @@ async function initFirebase() {
                 searchInput.value = localStorage.getItem(POCKET_SEARCH_KEY) || '';
                 toggleClearSearchBtn();
 
-                // Setup REAL-TIME Firestore listener
                 await setupFirestoreListener(appId, userId);
 
             } else {
@@ -307,7 +337,7 @@ async function addNewPocketItem(htmlContent) {
     }
 
     const newItem = {
-        text: htmlContent.trim(), // Storing rich HTML content
+        text: htmlContent.trim(), 
         dateAdded: new Date().toISOString(),
         wasEdited: false
     };
@@ -316,7 +346,7 @@ async function addNewPocketItem(htmlContent) {
         const itemsColRef = collection(db, 'artifacts', appId, 'users', userId, 'mypocket');
         await addDoc(itemsColRef, newItem);
 
-        addItemInput.innerHTML = ''; // Reset rich text area
+        addItemInput.innerHTML = ''; 
         localStorage.setItem(POCKET_SORT_KEY, 'latest');
         localStorage.setItem(POCKET_SEARCH_KEY, '');
         searchInput.value = '';
@@ -458,6 +488,34 @@ menuDarkModeToggle.addEventListener('keydown', (e) => {
     }
 });
 
+// --- View Toggle Logic (Grid / List) ---
+function applyViewMode(mode) {
+    if (mode === 'grid') {
+        pocketGridContainer.classList.add('grid-view');
+        if (viewToggleBtn) {
+            viewToggleBtn.innerHTML = '<i class="fa-solid fa-list"></i>';
+            viewToggleBtn.title = 'Switch to List View';
+            viewToggleBtn.setAttribute('aria-label', 'Switch to List View');
+        }
+    } else {
+        pocketGridContainer.classList.remove('grid-view');
+        if (viewToggleBtn) {
+            viewToggleBtn.innerHTML = '<i class="fa-solid fa-table-cells-large"></i>';
+            viewToggleBtn.title = 'Switch to Grid View';
+            viewToggleBtn.setAttribute('aria-label', 'Switch to Grid View');
+        }
+    }
+    localStorage.setItem(POCKET_VIEW_KEY, mode);
+}
+
+if (viewToggleBtn) {
+    viewToggleBtn.addEventListener('click', () => {
+        const isCurrentlyGrid = pocketGridContainer.classList.contains('grid-view');
+        applyViewMode(isCurrentlyGrid ? 'list' : 'grid');
+        triggerHaptic(10);
+    });
+}
+
 // --- Direct Email Items Logic ---
 async function emailItemsDirectly() {
     if (!auth || !auth.currentUser || !auth.currentUser.email) {
@@ -516,9 +574,9 @@ emailListBtn.addEventListener('click', emailItemsDirectly);
 sortControlsContainer.addEventListener('click', (e) => {
     const clickedButton = e.target.closest('.sort-btn');
     if (!clickedButton) return;
-    if (clickedButton.closest('.sort-actions-group')) return;
+    if (clickedButton.closest('.sort-actions-group') || clickedButton.id === 'viewToggleBtn') return;
 
-    sortOptionsGroup.querySelectorAll('.sort-btn').forEach(btn => {
+    sortOptionsGroup.querySelectorAll('.sort-btn:not(#viewToggleBtn)').forEach(btn => {
         btn.classList.remove('active');
         btn.setAttribute('aria-pressed', 'false');
     });
@@ -551,7 +609,6 @@ function generateAndDownloadPDF() {
         const sortPreference = localStorage.getItem(POCKET_SORT_KEY) || 'latest';
         const searchTerm = (localStorage.getItem(POCKET_SEARCH_KEY) || '').toLowerCase();
         
-        // Match searching with stripped HTML strings
         const items = searchTerm ? allItems.filter(item => {
             const plainText = item.text.replace(/<[^>]*>/g, '').toLowerCase();
             return plainText.includes(searchTerm);
@@ -656,7 +713,6 @@ function generateAndDownloadPDF() {
                     }
                 }
                 
-                // Strip HTML tags for clean PDF generation
                 let plainText = item.text
                                     .replace(/<br\s*[\/]?>/gi, "\n")
                                     .replace(/<li>/gi, "\n• ")
@@ -666,7 +722,7 @@ function generateAndDownloadPDF() {
 
                 const textLines = doc.splitTextToSize(plainText.trim(), CONTENT_WIDTH - 20);
                 const textHeight = doc.getTextDimensions(textLines).h;
-                const totalCardHeight = textHeight + 10 + 30; // text, date, padding
+                const totalCardHeight = textHeight + 10 + 30; 
                 checkPageBreak(totalCardHeight + 10);
                 doc.setDrawColor('#E0E0E0');
                 doc.setFillColor('#FFFFFF');
@@ -725,7 +781,6 @@ function renderPocketGrid(items) {
     const searchTerm = (localStorage.getItem(POCKET_SEARCH_KEY) || '').toLowerCase();
     const sortedItems = getSortedItems(items);
     
-    // Filter matching on stripped text so HTML tags don't break searches
     const filteredItems = searchTerm ? sortedItems.filter(item => {
         const plainText = item.text.replace(/<[^>]*>/g, '').toLowerCase();
         return plainText.includes(searchTerm);
@@ -763,7 +818,7 @@ function renderPocketGrid(items) {
         pocketGridContainer.appendChild(messageP);
     }
 
-    const sortButtons = document.querySelectorAll('.sort-options-group .sort-btn');
+    const sortButtons = document.querySelectorAll('.sort-options-group .sort-btn:not(#viewToggleBtn)');
     const sortPreference = localStorage.getItem(POCKET_SORT_KEY) || 'latest';
     sortButtons.forEach(btn => {
         btn.classList.toggle('active', btn.dataset.sort === sortPreference);
@@ -914,11 +969,10 @@ pocketGridContainer.addEventListener('click', (e) => {
         const isEditing = itemEl.classList.contains('is-editing');
         const deleteBtnIcon = itemEl.querySelector('.item-delete-btn i');
 
-        // NEW: Intercept for Mobile!
         if (window.innerWidth <= 640) {
             const currentHTML = itemEl.querySelector('.item-text').innerHTML;
             openMobileEditor(itemId, currentHTML);
-            return; // Stop here, do not run the desktop inline-edit logic
+            return; 
         }
 
         if (isEditing) {
@@ -1013,12 +1067,15 @@ window.addEventListener('storage', (e) => {
     if (e.key === POCKET_THEME_KEY) {
         applyTheme(localStorage.getItem(POCKET_THEME_KEY) || 'light');
     }
+    if (e.key === POCKET_VIEW_KEY) {
+        applyViewMode(localStorage.getItem(POCKET_VIEW_KEY) || 'list');
+    }
 });
 
 // --- Initial Load & Optimistic UI ---
 applyTheme(localStorage.getItem(POCKET_THEME_KEY) || 'light');
+applyViewMode(localStorage.getItem(POCKET_VIEW_KEY) || 'list');
 
-// OPTIMISTIC LOAD: If we know they were logged in, show UI immediately
 if (localStorage.getItem(CACHED_USER_KEY) === "true") {
     document.getElementById('mainContentContainer').style.display = 'block';
     document.getElementById('loginPromptMessage').style.display = 'none';
@@ -1045,9 +1102,8 @@ function openMobileEditor(itemId = null, currentHtml = '') {
     activeMobileEditId = itemId;
     mobileEditorInput.innerHTML = currentHtml;
     mobileEditorModal.classList.add('open');
-    document.body.classList.add('modal-open'); // Prevent background scrolling
+    document.body.classList.add('modal-open'); 
     
-    // Focus the editor after the slide-up animation completes
     setTimeout(() => mobileEditorInput.focus(), 300);
 }
 
@@ -1059,18 +1115,15 @@ function closeMobileEditor() {
     mobileEditorInput.innerHTML = '';
 }
 
-// FAB Click -> Open blank modal for a NEW item
 mobileFab.addEventListener('click', () => {
     triggerHaptic(15);
     openMobileEditor();
 });
 
-// Close button
 closeMobileEditorBtn.addEventListener('click', closeMobileEditor);
 
-// Save button -> Decides whether to update or create
 saveMobileEditorBtn.addEventListener('click', () => {
-    triggerHaptic([10, 30, 10]); // A satisfying double-buzz for saving
+    triggerHaptic([10, 30, 10]); 
     const htmlContent = mobileEditorInput.innerHTML;
     if (activeMobileEditId) {
         updatePocketItem(activeMobileEditId, htmlContent);
@@ -1083,13 +1136,9 @@ saveMobileEditorBtn.addEventListener('click', () => {
 // --- PWA Install Logic ---
 let deferredPrompt;
 
-// Listen for the beforeinstallprompt event to intercept the default browser prompt
 window.addEventListener('beforeinstallprompt', (e) => {
-    // Prevent the mini-infobar from appearing on mobile
     e.preventDefault();
-    // Stash the event so it can be triggered later.
     deferredPrompt = e;
-    // Show the "Install App" button in the modal
     if (menuInstallAppBtn) {
         menuInstallAppBtn.style.display = 'flex';
     }
@@ -1098,20 +1147,14 @@ window.addEventListener('beforeinstallprompt', (e) => {
 if (menuInstallAppBtn) {
     menuInstallAppBtn.addEventListener('click', async () => {
         if (deferredPrompt) {
-            // Show the install prompt
             deferredPrompt.prompt();
-            // Wait for the user to respond to the prompt
             const { outcome } = await deferredPrompt.userChoice;
             console.log(`User response to the install prompt: ${outcome}`);
-            // We've used the prompt, and can't use it again, throw it away
             deferredPrompt = null;
-            // Hide the button again
             menuInstallAppBtn.style.display = 'none';
-            // Close the modal
             closeUnifiedModal();
         }
     });
 };
 
-// Boot Firebase in the background
 initFirebase();
