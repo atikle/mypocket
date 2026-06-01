@@ -66,7 +66,6 @@
             
             --background-1: white;
             --background-2: #f0f2f5;
-            --header-bg: rgba(255, 255, 255, 0.85); /* Added for liquid glass */
             --card-background-1: white;
             --text-color-1: #050505;
             --text-color-2: #65676b;
@@ -81,14 +80,22 @@
             --pocket-error: #e74c3c;
         }
         html.dark {
+            /* Deep OLED blacks for the background */
             --background-1: #000000;
             --background-2: #000000;
-            --header-bg: rgba(28, 28, 30, 0.85); /* Matches premium OLED dark aesthetic */
+            
+            /* Elevated, sleek card background (Apple style) */
             --card-background-1: #1c1c1e;
+            
+            /* Softer, premium off-white text to reduce eye fatigue */
             --text-color-1: #f5f5f7;
             --text-color-2: #86868b;
+            
+            /* Deeper, more diffused shadows for subtle depth */
             --shadow-1: 0 8px 24px rgba(0, 0, 0, 0.4);
             --shadow-2: 0 4px 12px rgba(0, 0, 0, 0.5);
+            
+            /* Highly transparent hover states and subtle borders */
             --hover-overlay: rgba(255, 255, 255, 0.05);
             --border-color-1: #2c2c2e; 
         }
@@ -111,11 +118,9 @@
             overflow-x: hidden;
         }
 
-        /* --- App Header (Upgraded to Frosted Glass) --- */
+        /* --- App Header --- */
         .app-header {
-            background-color: var(--header-bg);
-            backdrop-filter: saturate(180%) blur(20px);
-            -webkit-backdrop-filter: saturate(180%) blur(20px);
+            background-color: var(--background-1);
             padding: calc(15px + env(safe-area-inset-top)) 30px 15px;
             padding-left: calc(30px + env(safe-area-inset-left));
             padding-right: calc(30px + env(safe-area-inset-right));
@@ -173,6 +178,7 @@
             opacity: 0.8;
         }
         
+        /* Account Profile Avatar in Header */
         .user-profile-btn {
             width: 40px;
             height: 40px;
@@ -218,8 +224,7 @@
             outline: none;
             border-color: var(--pocket-brand);
             background-color: var(--card-background-1);
-            box-shadow: 0 0 0 4px rgba(239, 64, 86, 0.15), 0 4px 12px rgba(0, 0, 0, 0.05); 
-            transform: translateY(-1px);
+            box-shadow: 0 0 0 3px rgba(239, 64, 86, 0.3);
         }
         .add-item-input::placeholder {
             color: var(--text-color-2);
@@ -306,8 +311,6 @@
         #searchInput:focus {
             outline: none;
             border-color: var(--pocket-edit);
-            box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.15), 0 4px 12px rgba(0, 0, 0, 0.05);
-            transform: translateY(-1px);
         }
         #searchInput::placeholder {
             color: var(--text-color-2);
@@ -381,6 +384,7 @@
             background-color: var(--card-background-1);
             color: var(--text-color-2);
             cursor: pointer;
+            transition: all var(--transition-speed-fast) ease-out;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -445,55 +449,16 @@
             gap: 20px; 
         }
 
-        /* --- Animations & Micro-interactions --- */
-        @keyframes slideUpFade {
-            from {
-                opacity: 0;
-                transform: translateY(24px) scale(0.98);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
-        }
-
-        /* Tactile buttons */
-        .add-item-btn, 
-        .sort-btn, 
-        .item-action-btn, 
-        .user-profile-btn,
-        .settings-menu-item,
-        .modal-btn,
-        .close-modal-btn,
-        #loginBtn,
-        .clear-search-btn {
-            transition: all var(--transition-speed-fast) var(--ease-out-quad), transform 0.1s ease !important; 
-        }
-        
-        .add-item-btn:active, 
-        .sort-btn:active, 
-        .item-action-btn:active,
-        .user-profile-btn:active,
-        .settings-menu-item:active,
-        .modal-btn:active,
-        .close-modal-btn:active,
-        #loginBtn:active,
-        .clear-search-btn:active {
-            transform: scale(0.92) !important;
-        }
-
         /* --- Post Item Styles --- */
         .pocket-post-item {
             background: var(--card-background-1);
             border-radius: 12px;
             box-shadow: var(--shadow-1);
             border: 1px solid var(--border-color-1);
+            transition: all var(--transition-speed-normal) var(--ease-out-quad);
+            opacity: 1;
+            transform: scale(1);
             overflow: hidden; 
-            
-            /* Animation logic */
-            opacity: 0;
-            animation: slideUpFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-            will-change: transform, opacity;
         }
         .post-header {
             display: flex;
@@ -549,13 +514,12 @@
             padding: 10px;
             resize: none; 
             overflow-y: auto; 
-            transition: border-color var(--transition-speed-fast) ease, box-shadow var(--transition-speed-fast) ease, transform var(--transition-speed-fast) ease;
+            transition: border-color var(--transition-speed-fast) ease, box-shadow var(--transition-speed-fast) ease;
         }
         .edit-textarea:focus {
             outline: none;
             border-color: var(--pocket-edit);
-            box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.15), 0 4px 12px rgba(0, 0, 0, 0.05);
-            transform: translateY(-1px);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
         }
         .pocket-post-item.is-editing .item-text {
             display: none; 
@@ -601,6 +565,7 @@
             align-items: center;
             justify-content: center;
             opacity: 0.6;
+            transition: all var(--transition-speed-fast) var(--ease-out-quad);
             flex-shrink: 0;
             text-decoration: none; 
         }
@@ -634,7 +599,6 @@
         .pocket-post-item.pocket-item-fade-out {
             opacity: 0;
             transform: scale(0.95); 
-            transition: all var(--transition-speed-fast) var(--ease-out-quad);
         }
 
         .pocket-empty-message {
@@ -676,9 +640,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.4); /* Enhanced depth */
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+            background-color: rgba(0, 0, 0, 0.5);
             z-index: 1001;
             opacity: 0;
             transition: opacity var(--transition-speed-fast) ease-out;
@@ -723,16 +685,20 @@
             font-size: 18px;
             color: var(--text-color-2);
             cursor: pointer;
+            transition: color var(--transition-speed-fast);
+
             width: 38px;
             height: 38px;
             border-radius: 50%;
-            background-color: rgba(128, 128, 128, 0.2);
+            background-color: rgba(128, 128, 128, 0.2); /* Universal gray overlay for both light & OLED dark modes */
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 0;
             margin: 0;
             z-index: 1010;
+            backdrop-filter: blur(8px); /* Optional: Adds a nice liquid glass effect */
+            -webkit-backdrop-filter: blur(8px);
         }
         .close-modal-btn:hover {
             color: var(--text-color-1);
@@ -746,17 +712,17 @@
             margin-bottom: 15px;
         }
         .modal-avatar-img {
-            width: 130px; 
-            height: 130px; 
+            width: 130px; /* Increased from 80px */
+            height: 130px; /* Increased from 80px */
             border-radius: 50%;
             object-fit: cover;
             margin-bottom: 20px; 
-            border: 3px solid var(--border-color-1); 
-            box-shadow: var(--shadow-2); 
+            border: 3px solid var(--border-color-1); /* Slightly thicker border */
+            box-shadow: var(--shadow-2); /* Added shadow to make it pop */
         }
         body.modal-open {
             overflow: hidden;
-            touch-action: none; 
+            touch-action: none; /* Prevents mobile scroll bouncing */
         }
         .modal-user-name {
             font-size: 20px;
@@ -790,6 +756,7 @@
             width: 100%;
             cursor: pointer;
             border-radius: 8px;
+            transition: background-color var(--transition-speed-fast) var(--ease-out-quad);
         }
 
         .settings-menu-item:hover {
@@ -834,6 +801,7 @@
             border-radius: 8px;
             border: none;
             cursor: pointer;
+            transition: all var(--transition-speed-fast) ease-out;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -986,6 +954,7 @@
 
             /* Mobile Fullscreen Override */
             .unified-modal {
+                /* Use 100% instead of 100vw/vh to prevent overflow scrollbars (the black bars) */
                 width: 100%; 
                 height: 100%;
                 max-width: none;
