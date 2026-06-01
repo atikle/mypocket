@@ -80,22 +80,13 @@
             --pocket-error: #e74c3c;
         }
         html.dark {
-            /* Deep OLED blacks for the background */
             --background-1: #000000;
             --background-2: #000000;
-            
-            /* Elevated, sleek card background (Apple style) */
             --card-background-1: #1c1c1e;
-            
-            /* Softer, premium off-white text to reduce eye fatigue */
             --text-color-1: #f5f5f7;
             --text-color-2: #86868b;
-            
-            /* Deeper, more diffused shadows for subtle depth */
             --shadow-1: 0 8px 24px rgba(0, 0, 0, 0.4);
             --shadow-2: 0 4px 12px rgba(0, 0, 0, 0.5);
-            
-            /* Highly transparent hover states and subtle borders */
             --hover-overlay: rgba(255, 255, 255, 0.05);
             --border-color-1: #2c2c2e; 
         }
@@ -178,7 +169,6 @@
             opacity: 0.8;
         }
         
-        /* Account Profile Avatar in Header */
         .user-profile-btn {
             width: 40px;
             height: 40px;
@@ -199,7 +189,12 @@
             object-fit: cover;
         }
 
-        /* --- Rich Text Editor Toolbar --- */
+        /* --- Desktop Rich Text Editor Form --- */
+        .add-item-form {
+            position: relative;
+            margin-top: 8vh;
+            margin-bottom: 8vh;
+        }
         .editor-toolbar {
             display: flex;
             flex-wrap: wrap;
@@ -231,7 +226,6 @@
             background-color: var(--hover-overlay);
             color: var(--text-color-1);
         }
-        /* Adjust main rich text editors */
         .rich-editor {
             font-family: 'Inter', sans-serif;
             width: 100%;
@@ -256,77 +250,40 @@
             border-color: var(--pocket-brand);
             box-shadow: 0 0 0 3px rgba(239, 64, 86, 0.2);
         }
-        /* Contenteditable Placeholder workaround */
         .rich-editor[contenteditable]:empty::before {
             content: attr(placeholder);
             color: var(--text-color-2);
             opacity: 0.6;
             pointer-events: none;
         }
-        /* Styling list markup inside notes */
-        .item-text ul, .rich-editor ul {
-            margin-left: 20px;
-            padding-left: 5px;
-            list-style-type: disc;
-        }
-        .item-text h1, .rich-editor h1 { font-size: 1.6rem; margin: 8px 0; }
-        .item-text h2, .rich-editor h2 { font-size: 1.4rem; margin: 6px 0; }
-        .item-text h3, .rich-editor h3 { font-size: 1.2rem; margin: 4px 0; }
 
-        .add-item-form {
-            position: relative;
-            margin-top: 8vh;
-            margin-bottom: 8vh;
-        }
-        .add-item-input {
-            font-family: 'Inter', sans-serif;
-            width: 100%;
-            padding: 12px 20px; 
-            border-radius: 12px; 
-            border: 1px solid var(--border-color-1);
-            background-color: var(--card-background-1); 
-            color: var(--text-color-1);
-            font-size: 15px; 
-            line-height: 1.5; 
-            transition: all var(--transition-speed-fast) ease-out;
-            box-shadow: var(--shadow-1); 
-            min-height: 80px; 
-            max-height: 500px;
-            overflow-y: hidden;
-        }
-        .add-item-input:focus {
-            outline: none;
-            border-color: var(--pocket-brand);
-            background-color: var(--card-background-1);
-            box-shadow: 0 0 0 3px rgba(239, 64, 86, 0.3);
-        }
-        .add-item-input::placeholder {
-            color: var(--text-color-2);
-            opacity: 0.8;
-        }
-        .add-item-btn {
+        /* Desktop Text Save Button Overrides */
+        .add-item-form .add-item-btn {
             position: absolute;
-            right: 10px; 
-            bottom: 10px; 
-            width: 36px; 
-            height: 36px; 
-            border-radius: 50%;
-            background-color: var(--pocket-brand);
-            color: white;
-            border: none;
-            font-size: 16px;
+            width: auto;
+            height: auto;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 14px;
+            bottom: 12px; 
+            right: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
+            background-color: var(--pocket-brand);
+            color: white;
+            border: none;
             cursor: pointer;
             transition: all var(--transition-speed-fast) ease-out;
             opacity: 0.8;
         }
-        .add-item-btn:hover {
+        .add-item-form .add-item-btn:hover {
             opacity: 1;
-            transform: scale(1.1); 
+            transform: scale(1.05);
         }
-        .add-item-input:focus + .add-item-btn {
+        .rich-editor:focus ~ .add-item-btn {
             opacity: 1;
         }
         
@@ -566,7 +523,9 @@
         .post-body {
             padding: 15px;
         }
-        .item-text {
+        
+        /* Styling list markup & rich text inside notes */
+        .item-text, .rich-editor {
             font-size: 16px;
             line-height: 1.5;
             color: var(--text-color-1);
@@ -574,35 +533,17 @@
             white-space: pre-wrap; 
             font-weight: 500;
         }
-        .edit-textarea {
-            display: none;
-            width: 100%;
-            font-family: 'Inter', sans-serif;
-            font-size: 16px;
-            line-height: 1.5;
-            font-weight: 500;
-            color: var(--text-color-1);
-            background-color: var(--background-2);
-            border: 1px solid var(--border-color-1);
-            border-radius: 8px;
-            padding: 10px;
-            resize: none; 
-            overflow-y: auto; 
-            transition: border-color var(--transition-speed-fast) ease, box-shadow var(--transition-speed-fast) ease;
+        .item-text ul, .rich-editor ul {
+            margin-left: 20px;
+            padding-left: 5px;
+            list-style-type: disc;
         }
-        .edit-textarea:focus {
-            outline: none;
-            border-color: var(--pocket-edit);
-            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
-        }
+        .item-text h1, .rich-editor h1 { font-size: 1.6rem; margin: 8px 0; }
+        .item-text h2, .rich-editor h2 { font-size: 1.4rem; margin: 6px 0; }
+        .item-text h3, .rich-editor h3 { font-size: 1.2rem; margin: 4px 0; }
+        
+        /* Editing mode overrides for posts */
         .pocket-post-item.is-editing .item-text {
-            display: none; 
-        }
-        .pocket-post-item.is-editing .edit-textarea {
-            display: block; 
-        }
-        .pocket-post-item.is-editing .item-text,
-        .pocket-post-item.is-editing .item-search-btn {
             display: none; 
         }
         .pocket-post-item.is-editing .item-search-btn,
@@ -658,9 +599,6 @@
         .pocket-post-item.is-editing .item-edit-btn {
             color: var(--pocket-save); 
         }
-        .pocket-post-item.is-editing .item-edit-btn:hover {
-            color: var(--pocket-save); 
-        }
         .item-edit-btn .fa-save {
             display: none;
         }
@@ -704,6 +642,112 @@
         }
         .notification-toast.error {
             background-color: var(--pocket-error);
+        }
+
+        /* --- Mobile FAB & Fullscreen Modal --- */
+        .mobile-fab {
+            display: none; 
+            position: fixed;
+            bottom: calc(30px + env(safe-area-inset-bottom));
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: var(--pocket-brand);
+            color: white;
+            border: none;
+            box-shadow: 0 6px 16px rgba(239, 64, 86, 0.4);
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 900;
+            transition: transform var(--transition-speed-fast) var(--ease-out-quad), box-shadow var(--transition-speed-fast);
+        }
+        .mobile-fab:active {
+            transform: scale(0.9);
+        }
+
+        .editor-modal {
+            position: fixed;
+            top: 100%; /* Start completely off-screen at the bottom */
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--background-1);
+            z-index: 1050;
+            display: flex;
+            flex-direction: column;
+            transition: top 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            padding-top: env(safe-area-inset-top);
+        }
+        .editor-modal.open {
+            top: 0; /* Slide up to cover screen */
+        }
+
+        .editor-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            border-bottom: 1px solid var(--border-color-1);
+            background-color: var(--background-1);
+        }
+        .editor-modal-header .icon-btn {
+            background: none;
+            border: none;
+            color: var(--text-color-1);
+            font-size: 20px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        
+        /* Mobile Save Button */
+        .editor-modal-header .text-save-btn {
+            background-color: transparent;
+            color: var(--pocket-save);
+            font-size: 16px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            border: none;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background-color var(--transition-speed-fast);
+        }
+        .editor-modal-header .text-save-btn:hover,
+        .editor-modal-header .text-save-btn:active {
+            background-color: rgba(46, 204, 113, 0.1);
+        }
+
+        .modal-toolbar {
+            border-radius: 0;
+            border-left: none;
+            border-right: none;
+            background-color: var(--background-2);
+            overflow-x: auto; 
+            flex-wrap: nowrap;
+            -ms-overflow-style: none;  
+            scrollbar-width: none; 
+        }
+        .modal-toolbar::-webkit-scrollbar { display: none; }
+
+        .modal-rich-editor {
+            flex-grow: 1;
+            border: none;
+            border-radius: 0;
+            box-shadow: none;
+            max-height: none;
+            padding: 20px;
+            font-size: 16px;
+            background-color: var(--background-1);
+        }
+        .modal-rich-editor:focus {
+            box-shadow: none;
+            border: none;
         }
 
         /* --- Modal Styles (Base & Unified) --- */
@@ -764,14 +808,14 @@
             width: 38px;
             height: 38px;
             border-radius: 50%;
-            background-color: rgba(128, 128, 128, 0.2); /* Universal gray overlay for both light & OLED dark modes */
+            background-color: rgba(128, 128, 128, 0.2); 
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 0;
             margin: 0;
             z-index: 1010;
-            backdrop-filter: blur(8px); /* Optional: Adds a nice liquid glass effect */
+            backdrop-filter: blur(8px); 
             -webkit-backdrop-filter: blur(8px);
         }
         .close-modal-btn:hover {
@@ -786,17 +830,17 @@
             margin-bottom: 15px;
         }
         .modal-avatar-img {
-            width: 130px; /* Increased from 80px */
-            height: 130px; /* Increased from 80px */
+            width: 130px; 
+            height: 130px; 
             border-radius: 50%;
             object-fit: cover;
             margin-bottom: 20px; 
-            border: 3px solid var(--border-color-1); /* Slightly thicker border */
-            box-shadow: var(--shadow-2); /* Added shadow to make it pop */
+            border: 3px solid var(--border-color-1); 
+            box-shadow: var(--shadow-2); 
         }
         body.modal-open {
             overflow: hidden;
-            touch-action: none; /* Prevents mobile scroll bouncing */
+            touch-action: none; 
         }
         .modal-user-name {
             font-size: 20px;
@@ -949,6 +993,16 @@
         /* --- Responsive --- */
         @media (max-width: 640px) {
             body { padding-top: calc(70px + env(safe-area-inset-top)); }
+            
+            .add-item-form {
+                display: none !important; /* Hide desktop input form entirely */
+            }
+            .mobile-fab {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
             .app-header {
                 padding: calc(15px + env(safe-area-inset-top)) 20px 15px;
                 padding-left: calc(20px + env(safe-area-inset-left));
@@ -966,17 +1020,6 @@
             .header-controls { justify-content: flex-end; }
             .app-header h1 { flex-grow: 0; }
             .main-container { margin: 20px auto; }
-            .add-item-input {
-                font-size: 14px;
-                padding: 10px 16px; 
-                min-height: 70px; 
-            }
-            .add-item-btn {
-                width: 32px;
-                height: 32px;
-                right: 8px; 
-                bottom: 8px; 
-            }
             #searchInput {
                 font-size: 14px;
                 padding: 10px 16px 10px 40px;
@@ -1028,7 +1071,6 @@
 
             /* Mobile Fullscreen Override */
             .unified-modal {
-                /* Use 100% instead of 100vw/vh to prevent overflow scrollbars (the black bars) */
                 width: 100%; 
                 height: 100%;
                 max-width: none;
@@ -1050,110 +1092,6 @@
             .close-modal-btn {
                 top: calc(15px + env(safe-area-inset-top));
                 right: calc(20px + env(safe-area-inset-right));
-            }
-        }
-        /* --- Mobile FAB & Fullscreen Modal --- */
-        .mobile-fab {
-            display: none; 
-            position: fixed;
-            bottom: calc(30px + env(safe-area-inset-bottom));
-            right: 20px;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background-color: var(--pocket-brand);
-            color: white;
-            border: none;
-            box-shadow: 0 6px 16px rgba(239, 64, 86, 0.4);
-            font-size: 24px;
-            cursor: pointer;
-            z-index: 900;
-            transition: transform var(--transition-speed-fast) var(--ease-out-quad), box-shadow var(--transition-speed-fast);
-        }
-        .mobile-fab:active {
-            transform: scale(0.9);
-        }
-
-        .editor-modal {
-            position: fixed;
-            top: 100%; /* Start completely off-screen at the bottom */
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: var(--background-1);
-            z-index: 1050;
-            display: flex;
-            flex-direction: column;
-            transition: top 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-            padding-top: env(safe-area-inset-top);
-        }
-        .editor-modal.open {
-            top: 0; /* Slide up to cover screen */
-        }
-
-        .editor-modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 15px;
-            border-bottom: 1px solid var(--border-color-1);
-            background-color: var(--background-1);
-        }
-
-        .editor-modal-header .icon-btn {
-            background: none;
-            border: none;
-            color: var(--text-color-1);
-            font-size: 20px;
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-        }
-        .editor-modal-header .save-btn {
-            color: var(--pocket-save);
-            background-color: rgba(46, 204, 113, 0.1);
-        }
-
-        .modal-toolbar {
-            border-radius: 0;
-            border-left: none;
-            border-right: none;
-            background-color: var(--background-2);
-            overflow-x: auto; /* Allow scrolling if toolbar gets too wide on narrow phones */
-            flex-wrap: nowrap;
-            -ms-overflow-style: none;  
-            scrollbar-width: none; 
-        }
-        .modal-toolbar::-webkit-scrollbar { display: none; }
-
-        .modal-rich-editor {
-            flex-grow: 1;
-            border: none;
-            border-radius: 0;
-            box-shadow: none;
-            max-height: none;
-            padding: 20px;
-            font-size: 16px;
-            background-color: var(--background-1);
-        }
-        .modal-rich-editor:focus {
-            box-shadow: none;
-            border: none;
-        }
-
-        /* --- Mobile Breakpoint Overrides --- */
-        @media (max-width: 640px) {
-            .add-item-form {
-                display: none !important; /* Hide desktop input form entirely */
-            }
-            .mobile-fab {
-                display: flex;
-                align-items: center;
-                justify-content: center;
             }
         }
     </style>
@@ -1201,11 +1139,9 @@
 
                 <!-- ContentEditable replacement for Textarea -->
                 <div id="addItemInput" class="rich-editor" contenteditable="true" placeholder="Add item to My Pocket"></div>
-                
-                <button type="submit" class="add-item-btn" title="Save Item" aria-label="Save Item" style="bottom: 15px; right: 15px;">
-                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
-                </button>
-            </form>
+    
+            <button type="submit" class="add-item-btn" title="Save Item" aria-label="Save Item">Save</button>
+        </form>
 
             <div class="search-container" role="search">
                 <i class="fa-solid fa-search search-icon" aria-hidden="true"></i>
@@ -1310,9 +1246,8 @@
             <button id="closeMobileEditorBtn" class="icon-btn" aria-label="Close">
                 <i class="fa-solid fa-arrow-left"></i>
             </button>
-            <button id="saveMobileEditorBtn" class="icon-btn save-btn" aria-label="Save">
-                <i class="fa-solid fa-check"></i>
-            </button>
+            
+            <button id="saveMobileEditorBtn" class="text-save-btn" aria-label="Save">Save</button>
         </div>
         
         <div class="editor-toolbar modal-toolbar">
