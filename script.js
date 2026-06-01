@@ -5,7 +5,9 @@ import {
     signOut
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import {
-    getFirestore,
+    initializeFirestore,
+    persistentLocalCache,
+    persistentMultipleTabManager,
     collection,
     doc,
     getDoc,
@@ -29,6 +31,8 @@ let notificationTimeout;
 const POCKET_SORT_KEY = "pocketSortPreference";
 const POCKET_SEARCH_KEY = "pocketSearchTerm";
 const POCKET_THEME_KEY = "theme";
+const CACHED_ITEMS_KEY = "pocketCachedItems"; 
+const CACHED_USER_KEY = "pocketCachedUser";   
 
 // --- DOM Elements ---
 const pocketGridContainer = document.getElementById('pocketGridContainer');
@@ -41,7 +45,7 @@ const addItemInput = document.getElementById('addItemInput');
 const searchInput = document.getElementById('searchInput');
 const clearSearchBtn = document.getElementById('clearSearchBtn');
 
-// Settings Elements (Now inside Unified Modal)
+// Settings Elements
 const menuDarkModeToggle = document.getElementById('menuDarkModeToggle');
 const menuThemeIcon = document.getElementById('menuThemeIcon');
 const menuThemeText = document.getElementById('menuThemeText');
@@ -67,8 +71,6 @@ const loginBtn = document.getElementById('loginBtn');
 const mainContentContainer = document.getElementById('mainContentContainer');
 const loginPromptMessage = document.getElementById('loginPromptMessage');
 
-// --- Call initFirebase() AFTER globals and DOM elements are declared ---
-initFirebase();
 
 // --- Textarea Auto-Resize Logic ---
 function autoResizeTextarea(el) {
@@ -126,13 +128,19 @@ async function initFirebase() {
     try {
         const app = initializeApp(firebaseConfig);
         auth = getAuth(app);
-        db = getFirestore(app);
+        
+        // ENABLE FIRESTORE OFFLINE PERSISTENCE
+        db = initializeFirestore(app, {
+            localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
+        });
+        
         setLogLevel('Debug');
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 userId = user.uid;
                 console.log('User is logged in:', userId);
+                localStorage.setItem(CACHED_USER_KEY, "true"); 
 
                 // Update UI
                 mainContentContainer.style.display = 'block';
@@ -153,9 +161,7 @@ async function initFirebase() {
                         if (userData.photoURL) photoUrl = userData.photoURL;
                     }
 
-                    // --- NEW: Upgrade Google Profile Picture Resolution ---
                     if (photoUrl && photoUrl.includes('googleusercontent.com')) {
-                        // Replaces the default small size parameter (e.g., =s96-c) with a high-res 400px version
                         if (photoUrl.match(/=s\d+-c/)) {
                             photoUrl = photoUrl.replace(/=s\d+-c/, '=s400-c');
                         } else {
@@ -163,7 +169,6 @@ async function initFirebase() {
                         }
                     }
 
-                    // Fallback to UI Avatars if no photo URL exists
                     if (!photoUrl) {
                         photoUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
                     }
@@ -176,7 +181,6 @@ async function initFirebase() {
                     console.error("Error fetching user profile:", error);
                 }
 
-                // Load UI preferences
                 searchInput.value = localStorage.getItem(POCKET_SEARCH_KEY) || '';
                 toggleClearSearchBtn();
 
@@ -186,6 +190,9 @@ async function initFirebase() {
             } else {
                 console.log('User is signed out. Redirecting to atikle Single Sign-On');
                 userId = null;
+                
+                localStorage.removeItem(CACHED_USER_KEY);
+                localStorage.removeItem(CACHED_ITEMS_KEY);
 
                 if (firestoreListenerUnsubscribe) {
                     firestoreListenerUnsubscribe();
@@ -211,13 +218,13 @@ async function initFirebase() {
 // --- Unified Modal Logic ---
 function openUnifiedModal() {
     unifiedModalOverlay.classList.add('show');
-    document.body.classList.add('modal-open'); // Lock background scrolling
+    document.body.classList.add('modal-open'); 
 }
 
 function closeUnifiedModal() {
     unifiedModalOverlay.classList.remove('show');
-    document.body.classList.remove('modal-open'); // Restore background scrolling
-    resetMenuClearAllBtn(); // Resets the "Are you sure?" clear all state
+    document.body.classList.remove('modal-open'); 
+    resetMenuClearAllBtn(); 
 }
 
 userProfileBtn.addEventListener('click', openUnifiedModal);
@@ -253,7 +260,7 @@ async function setupFirestoreListener(appId, uid) {
     const itemsColRef = collection(db, 'artifacts', appId, 'users', uid, 'mypocket');
     const q = query(itemsColRef);
 
-    firestoreListenerUnsubscribe = onSnapshot(q, (querySnapshot) => {
+    firestoreListenerUnsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (querySnapshot) => {
         let items = [];
         querySnapshot.forEach((doc) => {
             items.push({
@@ -263,6 +270,9 @@ async function setupFirestoreListener(appId, uid) {
         });
 
         currentPocketItems = items;
+        
+        localStorage.setItem(CACHED_ITEMS_KEY, JSON.stringify(items));
+        
         renderPocketGrid(items);
 
     }, (error) => {
@@ -407,7 +417,6 @@ function applyTheme(theme) {
         menuThemeText.textContent = 'Dark Mode';
         menuThemeState.textContent = 'On';
 
-        // Changed from '#1c1c1e' to '#000000' for a pure OLED black taskbar/navbar
         if (themeColorMeta) themeColorMeta.setAttribute('content', '#000000'); 
     } else {
         document.documentElement.classList.remove('dark');
@@ -665,7 +674,6 @@ menuDownloadPdfBtn.addEventListener('keydown', (e) => {
     }
 });
 
-
 // --- Render Logic ---
 function renderPocketGrid(items) {
     const isPocketEmpty = items.length === 0;
@@ -814,7 +822,6 @@ function cancelAllEdits() {
         itemEl.classList.remove('is-editing');
         itemEl.querySelector('.edit-textarea')?.remove();
 
-        // Restore Delete Button icon and attributes
         const deleteButton = itemEl.querySelector('.item-delete-btn');
         const deleteBtnIcon = deleteButton?.querySelector('i');
         if (deleteBtnIcon) {
@@ -834,19 +841,16 @@ function cancelAllEdits() {
 // --- Event Delegation ---
 pocketGridContainer.addEventListener('click', (e) => {
 
-    // Handle Delete / Cancel button click
     const deleteButton = e.target.closest('.item-delete-btn');
     if (deleteButton) {
         const itemEl = deleteButton.closest('.pocket-post-item');
         const itemId = itemEl.dataset.id;
 
-        // UX Enhancement: If editing, this button acts as "Cancel"
         if (itemEl.classList.contains('is-editing')) {
             cancelAllEdits();
             return;
         }
 
-        // Otherwise, proceed with deletion fade-out
         itemEl.classList.add('pocket-item-fade-out');
         setTimeout(() => {
             deletePocketItem(itemId);
@@ -854,7 +858,6 @@ pocketGridContainer.addEventListener('click', (e) => {
         return;
     }
 
-    // Handle Edit / Save button click
     const editButton = e.target.closest('.item-edit-btn');
     if (editButton) {
         const itemEl = editButton.closest('.pocket-post-item');
@@ -875,10 +878,8 @@ pocketGridContainer.addEventListener('click', (e) => {
             editTextArea.className = 'edit-textarea';
             editTextArea.value = currentText;
 
-            // Auto-resize trigger
             editTextArea.addEventListener('input', () => autoResizeTextarea(editTextArea));
 
-            // Pro Keyboard UX: Cmd/Ctrl+Enter to Save, Esc to Cancel
             editTextArea.addEventListener('keydown', (event) => {
                 if (event.key === 'Escape') {
                     event.preventDefault();
@@ -892,7 +893,6 @@ pocketGridContainer.addEventListener('click', (e) => {
             itemEl.querySelector('.post-body').appendChild(editTextArea);
             itemEl.classList.add('is-editing');
 
-            // Transform Delete icon into a Close/Cancel icon dynamically
             if (deleteBtnIcon) {
                 deleteBtnIcon.className = 'fas fa-xmark';
                 itemEl.querySelector('.item-delete-btn').title = 'Cancel';
@@ -948,9 +948,31 @@ window.addEventListener('storage', (e) => {
     }
 });
 
-// --- Initial Load ---
+// --- Initial Load & Optimistic UI ---
 applyTheme(localStorage.getItem(POCKET_THEME_KEY) || 'light');
+
+// OPTIMISTIC LOAD: If we know they were logged in, show UI immediately
+if (localStorage.getItem(CACHED_USER_KEY) === "true") {
+    document.getElementById('mainContentContainer').style.display = 'block';
+    document.getElementById('loginPromptMessage').style.display = 'none';
+    document.getElementById('userProfileBtn').style.display = 'block';
+    document.getElementById('loginBtn').style.display = 'none';
+    
+    try {
+        const cachedItems = JSON.parse(localStorage.getItem(CACHED_ITEMS_KEY) || "[]");
+        currentPocketItems = cachedItems;
+        if (cachedItems.length > 0) {
+            renderPocketGrid(cachedItems);
+        }
+    } catch (e) {
+        console.warn("Could not parse cached items", e);
+    }
+}
+
 addItemForm.addEventListener('submit', (e) => {
     e.preventDefault();
     addNewPocketItem(addItemInput.value);
 });
+
+// Boot Firebase in the background
+initFirebase();
