@@ -153,6 +153,16 @@ async function initFirebase() {
                         if (userData.photoURL) photoUrl = userData.photoURL;
                     }
 
+                    // --- NEW: Upgrade Google Profile Picture Resolution ---
+                    if (photoUrl && photoUrl.includes('googleusercontent.com')) {
+                        // Replaces the default small size parameter (e.g., =s96-c) with a high-res 400px version
+                        if (photoUrl.match(/=s\d+-c/)) {
+                            photoUrl = photoUrl.replace(/=s\d+-c/, '=s400-c');
+                        } else {
+                            photoUrl += '=s400-c';
+                        }
+                    }
+
                     // Fallback to UI Avatars if no photo URL exists
                     if (!photoUrl) {
                         photoUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
