@@ -189,12 +189,7 @@
             object-fit: cover;
         }
 
-        /* --- Desktop Rich Text Editor Form --- */
-        .add-item-form {
-            position: relative;
-            margin-top: 8vh;
-            margin-bottom: 8vh;
-        }
+        /* --- Rich Text Editor Base Styles --- */
         .editor-toolbar {
             display: flex;
             flex-wrap: wrap;
@@ -243,9 +238,6 @@
             border-bottom-right-radius: 12px;
             transition: all var(--transition-speed-fast) ease-out;
         }
-        .add-item-form .rich-editor {
-            box-shadow: var(--shadow-1);
-        }
         .rich-editor:focus {
             border-color: var(--pocket-brand);
             box-shadow: 0 0 0 3px rgba(239, 64, 86, 0.2);
@@ -255,36 +247,6 @@
             color: var(--text-color-2);
             opacity: 0.6;
             pointer-events: none;
-        }
-
-        /* Desktop Text Save Button Overrides */
-        .add-item-form .add-item-btn {
-            position: absolute;
-            width: auto;
-            height: auto;
-            padding: 6px 16px;
-            border-radius: 20px;
-            font-family: 'Inter', sans-serif;
-            font-weight: 600;
-            font-size: 14px;
-            bottom: 12px; 
-            right: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: var(--pocket-brand);
-            color: white;
-            border: none;
-            cursor: pointer;
-            transition: all var(--transition-speed-fast) ease-out;
-            opacity: 0.8;
-        }
-        .add-item-form .add-item-btn:hover {
-            opacity: 1;
-            transform: scale(1.05);
-        }
-        .rich-editor:focus ~ .add-item-btn {
-            opacity: 1;
         }
         
         .month-header {
@@ -542,18 +504,6 @@
         .item-text h2, .rich-editor h2 { font-size: 1.4rem; margin: 6px 0; }
         .item-text h3, .rich-editor h3 { font-size: 1.2rem; margin: 4px 0; }
         
-        /* Editing mode overrides for posts */
-        .pocket-post-item.is-editing .item-text {
-            display: none; 
-        }
-        .pocket-post-item.is-editing .item-search-btn,
-        .pocket-post-item.is-editing .item-delete-btn {
-            color: var(--text-color-2);
-        }
-        .pocket-post-item.is-editing .item-delete-btn:hover {
-            color: var(--pocket-error);
-            background-color: var(--hover-overlay);
-        }
         .post-footer {
             padding: 8px 15px;
             border-top: 1px solid var(--border-color-1);
@@ -596,17 +546,8 @@
         .item-edit-btn:hover {
             color: var(--pocket-edit);
         }
-        .pocket-post-item.is-editing .item-edit-btn {
-            color: var(--pocket-save); 
-        }
-        .item-edit-btn .fa-save {
-            display: none;
-        }
-        .pocket-post-item.is-editing .item-edit-btn .fa-save {
-            display: inline-block;
-        }
-        .pocket-post-item.is-editing .item-edit-btn .fa-pencil {
-            display: none;
+        .item-delete-btn:hover {
+            color: var(--pocket-error);
         }
         .pocket-post-item.pocket-item-fade-out {
             opacity: 0;
@@ -644,12 +585,14 @@
             background-color: var(--pocket-error);
         }
 
-        /* --- Mobile FAB & Fullscreen Modal --- */
-        .mobile-fab {
-            display: none; 
+        /* --- Universal FAB --- */
+        .global-fab {
+            display: flex;
+            align-items: center;
+            justify-content: center;
             position: fixed;
             bottom: calc(30px + env(safe-area-inset-bottom));
-            right: 20px;
+            right: 30px;
             width: 60px;
             height: 60px;
             border-radius: 50%;
@@ -662,25 +605,45 @@
             z-index: 900;
             transition: transform var(--transition-speed-fast) var(--ease-out-quad), box-shadow var(--transition-speed-fast);
         }
-        .mobile-fab:active {
-            transform: scale(0.9);
-        }
+        .global-fab:active { transform: scale(0.9); }
 
+        /* --- Unified Editor Modal --- */
         .editor-modal {
             position: fixed;
-            top: 100%; /* Start completely off-screen at the bottom */
+            top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: var(--background-1);
+            background-color: rgba(0, 0, 0, 0.5); /* Desktop Overlay */
             z-index: 1050;
             display: flex;
-            flex-direction: column;
-            transition: top 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-            padding-top: env(safe-area-inset-top);
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity var(--transition-speed-fast) var(--ease-out-quad);
+            padding: 20px;
         }
         .editor-modal.open {
-            top: 0; /* Slide up to cover screen */
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .editor-modal-container {
+            background-color: var(--background-1);
+            width: 100%;
+            max-width: 650px;
+            max-height: 85vh;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow-1);
+            transform: translateY(30px) scale(0.95);
+            transition: transform var(--transition-speed-fast) var(--ease-out-quad);
+            overflow: hidden;
+        }
+        .editor-modal.open .editor-modal-container {
+            transform: translateY(0) scale(1);
         }
 
         .editor-modal-header {
@@ -690,6 +653,7 @@
             padding: 10px 15px;
             border-bottom: 1px solid var(--border-color-1);
             background-color: var(--background-1);
+            flex-shrink: 0;
         }
         .editor-modal-header .icon-btn {
             background: none;
@@ -705,7 +669,6 @@
             cursor: pointer;
         }
         
-        /* Mobile Save Button */
         .editor-modal-header .text-save-btn {
             background-color: transparent;
             color: var(--pocket-save);
@@ -731,26 +694,24 @@
             overflow-x: auto; 
             flex-wrap: nowrap;
             -ms-overflow-style: none;  
-            scrollbar-width: none; 
+            scrollbar-width: none;
+            flex-shrink: 0; 
         }
         .modal-toolbar::-webkit-scrollbar { display: none; }
 
         .modal-rich-editor {
             flex-grow: 1;
+            overflow-y: auto;
             border: none;
             border-radius: 0;
             box-shadow: none;
-            max-height: none;
             padding: 20px;
             font-size: 16px;
             background-color: var(--background-1);
         }
-        .modal-rich-editor:focus {
-            box-shadow: none;
-            border: none;
-        }
+        .modal-rich-editor:focus { outline: none; }
 
-        /* --- Modal Styles (Base & Unified) --- */
+        /* --- Modal Styles (Base & Unified Settings) --- */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -994,15 +955,6 @@
         @media (max-width: 640px) {
             body { padding-top: calc(70px + env(safe-area-inset-top)); }
             
-            .add-item-form {
-                display: none !important; /* Hide desktop input form entirely */
-            }
-            .mobile-fab {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-
             .app-header {
                 padding: calc(15px + env(safe-area-inset-top)) 20px 15px;
                 padding-left: calc(20px + env(safe-area-inset-left));
@@ -1064,12 +1016,27 @@
             .item-action-btn { opacity: 0.8; }
             .item-action-btn:hover { background-color: var(--hover-overlay); }
             .notification-toast.show {
-                bottom: calc(20px + env(safe-area-inset-bottom));
+                bottom: calc(20px + env(safe-area-bottom));
                 width: 90vw;
                 text-align: center;
             }
 
-            /* Mobile Fullscreen Override */
+            /* Responsive Adjustments for Universal Elements */
+            .global-fab { right: 20px; }
+            
+            .editor-modal {
+                padding: 0;
+                align-items: flex-end; /* Align to bottom for slide-up */
+            }
+            .editor-modal-container {
+                max-height: 100%;
+                height: 100%;
+                border-radius: 0;
+                transform: translateY(100%) scale(1);
+                padding-top: env(safe-area-inset-top);
+            }
+
+            /* Mobile Fullscreen Override for Settings Modal */
             .unified-modal {
                 width: 100%; 
                 height: 100%;
@@ -1094,16 +1061,15 @@
                 right: calc(20px + env(safe-area-inset-right));
             }
         }
+        
         /* --- Grid View --- */
         #pocketGridContainer.grid-view {
             display: grid;
-            /* Auto-fills left-to-right. Cards are at least 280px wide on desktop */
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 20px;
-            align-items: start; /* Prevents short cards from stretching vertically to match tall cards */
+            align-items: start; 
         }
 
-        /* Ensure Month Headers break the grid and span the entire row */
         #pocketGridContainer.grid-view .month-header {
             grid-column: 1 / -1;
             margin-top: 20px;
@@ -1111,36 +1077,32 @@
         }
 
         #pocketGridContainer.grid-view .pocket-post-item {
-            max-height: 350px; /* Limit the max height of the card on desktop */
+            max-height: 350px; 
             display: flex;
             flex-direction: column;
-            margin-bottom: 0; /* Removing the flexbox gap from list view */
+            margin-bottom: 0; 
             width: 100%;
         }
 
-        /* Make the content area scrollable if the note hits the max height */
         #pocketGridContainer.grid-view .post-body {
             overflow-y: auto;
             flex-grow: 1;
-            scrollbar-width: none; /* Hide scrollbar for Firefox */
+            scrollbar-width: none; 
         }
         #pocketGridContainer.grid-view .post-body::-webkit-scrollbar {
-            display: none; /* Hide scrollbar for Chrome/Safari/Edge */
+            display: none; 
         }
 
-        /* Mobile Tweaks */
         @media (max-width: 640px) {
             #pocketGridContainer.grid-view {
-                /* Force exactly 2 columns side-by-side on mobile */
                 grid-template-columns: repeat(2, 1fr);
                 gap: 12px;
             }
             
             #pocketGridContainer.grid-view .pocket-post-item {
-                max-height: 250px; /* Slightly shorter max-height for mobile screens */
+                max-height: 250px; 
             }
             
-            /* Ensure action buttons don't get squished in the smaller grid */
             #pocketGridContainer.grid-view .post-footer .item-actions {
                 flex-wrap: wrap; 
                 justify-content: space-around;
@@ -1173,28 +1135,6 @@
         </div>
         
         <div id="mainContentContainer">
-            <form class="add-item-form" id="addItemForm">
-                <label for="addItemInput" class="visually-hidden">Add new item</label>
-                
-                <!-- Formatting Toolbar -->
-                <div class="editor-toolbar" id="mainToolbar">
-                    <button type="button" data-cmd="formatBlock" data-val="<h1>" title="Heading 1">H1</button>
-                    <button type="button" data-cmd="formatBlock" data-val="<h2>" title="Heading 2">H2</button>
-                    <button type="button" data-cmd="formatBlock" data-val="<h3>" title="Heading 3">H3</button>
-                    <button type="button" data-cmd="bold" title="Bold"><i class="fa-solid fa-bold"></i></button>
-                    <button type="button" data-cmd="italic" title="Italic"><i class="fa-solid fa-italic"></i></button>
-                    <button type="button" data-cmd="underline" title="Underline"><i class="fa-solid fa-underline"></i></button>
-                    <button type="button" data-cmd="strikeThrough" title="Strikethrough"><i class="fa-solid fa-strikethrough"></i></button>
-                    <button type="button" data-cmd="hiliteColor" data-val="#ffff00" title="Highlight"><i class="fa-solid fa-highlighter"></i></button>
-                    <button type="button" data-cmd="insertUnorderedList" title="Bulleted List"><i class="fa-solid fa-list-ul"></i></button>
-                    <button type="button" data-cmd="removeFormat" title="Clear Formatting"><i class="fa-solid fa-eraser"></i></button>
-                </div>
-
-                <!-- ContentEditable replacement for Textarea -->
-                <div id="addItemInput" class="rich-editor" contenteditable="true" placeholder="Add item to My Pocket"></div>
-    
-            <button type="submit" class="add-item-btn" title="Save Item" aria-label="Save Item">Save</button>
-        </form>
 
             <div class="search-container" role="search">
                 <i class="fa-solid fa-search search-icon" aria-hidden="true"></i>
@@ -1293,32 +1233,33 @@
         </div>
     </div>
 
-    <button id="mobileFab" class="mobile-fab" aria-label="Add Note">
+    <button id="globalFab" class="global-fab" aria-label="Add Note">
         <i class="fa-solid fa-plus"></i>
     </button>
 
-    <div id="mobileEditorModal" class="editor-modal">
-        <div class="editor-modal-header">
-            <button id="closeMobileEditorBtn" class="icon-btn" aria-label="Close">
-                <i class="fa-solid fa-arrow-left"></i>
-            </button>
+    <div id="itemEditorModal" class="editor-modal">
+        <div class="editor-modal-container">
+            <div class="editor-modal-header">
+                <button id="closeEditorBtn" class="icon-btn" aria-label="Close">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <button id="saveEditorBtn" class="text-save-btn" aria-label="Save">Save</button>
+            </div>
             
-            <button id="saveMobileEditorBtn" class="text-save-btn" aria-label="Save">Save</button>
-        </div>
-        
-        <div class="editor-toolbar modal-toolbar">
-            <button type="button" data-cmd="formatBlock" data-val="<h1>">H1</button>
-            <button type="button" data-cmd="formatBlock" data-val="<h2>">H2</button>
-            <button type="button" data-cmd="formatBlock" data-val="<h3>">H3</button>
-            <button type="button" data-cmd="bold"><i class="fa-solid fa-bold"></i></button>
-            <button type="button" data-cmd="italic"><i class="fa-solid fa-italic"></i></button>
-            <button type="button" data-cmd="underline"><i class="fa-solid fa-underline"></i></button>
-            <button type="button" data-cmd="strikeThrough"><i class="fa-solid fa-strikethrough"></i></button>
-            <button type="button" data-cmd="hiliteColor" data-val="#ffff00"><i class="fa-solid fa-highlighter"></i></button>
-            <button type="button" data-cmd="insertUnorderedList"><i class="fa-solid fa-list-ul"></i></button>
-        </div>
+            <div class="editor-toolbar modal-toolbar">
+                <button type="button" data-cmd="formatBlock" data-val="<h1>">H1</button>
+                <button type="button" data-cmd="formatBlock" data-val="<h2>">H2</button>
+                <button type="button" data-cmd="formatBlock" data-val="<h3>">H3</button>
+                <button type="button" data-cmd="bold"><i class="fa-solid fa-bold"></i></button>
+                <button type="button" data-cmd="italic"><i class="fa-solid fa-italic"></i></button>
+                <button type="button" data-cmd="underline"><i class="fa-solid fa-underline"></i></button>
+                <button type="button" data-cmd="strikeThrough"><i class="fa-solid fa-strikethrough"></i></button>
+                <button type="button" data-cmd="hiliteColor" data-val="#ffff00"><i class="fa-solid fa-highlighter"></i></button>
+                <button type="button" data-cmd="insertUnorderedList"><i class="fa-solid fa-list-ul"></i></button>
+            </div>
 
-        <div id="mobileEditorInput" class="rich-editor modal-rich-editor" contenteditable="true" placeholder="Add to MyPocket"></div>
+            <div id="itemEditorInput" class="rich-editor modal-rich-editor" contenteditable="true" placeholder="Add to MyPocket"></div>
+        </div>
     </div>
 
     <script>
