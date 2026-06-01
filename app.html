@@ -989,6 +989,42 @@
             color: var(--pocket-brand);
             text-decoration: underline;
         }
+
+        /* --- Mobile Enhancements --- */
+        .toolbar-scroll-hint {
+            position: relative;
+            background-color: var(--background-2);
+        }
+        .toolbar-scroll-hint::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 30px;
+            height: 100%;
+            background: linear-gradient(to right, transparent, var(--background-2));
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .empty-state-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-top: 10vh;
+            text-align: center;
+        }
+        .empty-state-arrow {
+            display: none; /* Hidden on desktop */
+            margin-top: 20px;
+            margin-left: 100px;
+            animation: bounce 2s infinite ease-in-out;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(10px); }
+        }
         
         /* --- Responsive --- */
         @media (max-width: 640px) {
@@ -1069,6 +1105,13 @@
                 text-align: center;
             }
 
+            /* Empty state mobile arrow toggle */
+            .empty-state-arrow {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+
             /* Mobile Fullscreen Override */
             .unified-modal {
                 width: 100%; 
@@ -1123,7 +1166,6 @@
             <form class="add-item-form" id="addItemForm">
                 <label for="addItemInput" class="visually-hidden">Add new item</label>
                 
-                <!-- Formatting Toolbar -->
                 <div class="editor-toolbar" id="mainToolbar">
                     <button type="button" data-cmd="formatBlock" data-val="<h1>" title="Heading 1">H1</button>
                     <button type="button" data-cmd="formatBlock" data-val="<h2>" title="Heading 2">H2</button>
@@ -1137,7 +1179,6 @@
                     <button type="button" data-cmd="removeFormat" title="Clear Formatting"><i class="fa-solid fa-eraser"></i></button>
                 </div>
 
-                <!-- ContentEditable replacement for Textarea -->
                 <div id="addItemInput" class="rich-editor" contenteditable="true" placeholder="Add item to My Pocket"></div>
     
             <button type="submit" class="add-item-btn" title="Save Item" aria-label="Save Item">Save</button>
@@ -1205,14 +1246,12 @@
                     Download PDF
                 </button>
                 
-                <!-- NEW: Send to Email Button -->
                 <div class="settings-menu-divider"></div>
                 <button class="settings-menu-item" id="menuEmailListBtn" role="menuitem" tabindex="0">
                     <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
                     Send to Email
                 </button>
                 
-                <!-- NEW: Install App Button -->
                 <div class="settings-menu-divider"></div>
                 <button class="settings-menu-item" id="menuInstallAppBtn" role="menuitem" tabindex="0" style="display: none;">
                     <i class="fa-solid fa-cloud-arrow-down" aria-hidden="true"></i>
@@ -1250,16 +1289,18 @@
             <button id="saveMobileEditorBtn" class="text-save-btn" aria-label="Save">Save</button>
         </div>
         
-        <div class="editor-toolbar modal-toolbar">
-            <button type="button" data-cmd="formatBlock" data-val="<h1>">H1</button>
-            <button type="button" data-cmd="formatBlock" data-val="<h2>">H2</button>
-            <button type="button" data-cmd="formatBlock" data-val="<h3>">H3</button>
-            <button type="button" data-cmd="bold"><i class="fa-solid fa-bold"></i></button>
-            <button type="button" data-cmd="italic"><i class="fa-solid fa-italic"></i></button>
-            <button type="button" data-cmd="underline"><i class="fa-solid fa-underline"></i></button>
-            <button type="button" data-cmd="strikeThrough"><i class="fa-solid fa-strikethrough"></i></button>
-            <button type="button" data-cmd="hiliteColor" data-val="#ffff00"><i class="fa-solid fa-highlighter"></i></button>
-            <button type="button" data-cmd="insertUnorderedList"><i class="fa-solid fa-list-ul"></i></button>
+        <div class="toolbar-scroll-hint">
+            <div class="editor-toolbar modal-toolbar">
+                <button type="button" data-cmd="formatBlock" data-val="<h1>">H1</button>
+                <button type="button" data-cmd="formatBlock" data-val="<h2>">H2</button>
+                <button type="button" data-cmd="formatBlock" data-val="<h3>">H3</button>
+                <button type="button" data-cmd="bold"><i class="fa-solid fa-bold"></i></button>
+                <button type="button" data-cmd="italic"><i class="fa-solid fa-italic"></i></button>
+                <button type="button" data-cmd="underline"><i class="fa-solid fa-underline"></i></button>
+                <button type="button" data-cmd="strikeThrough"><i class="fa-solid fa-strikethrough"></i></button>
+                <button type="button" data-cmd="hiliteColor" data-val="#ffff00"><i class="fa-solid fa-highlighter"></i></button>
+                <button type="button" data-cmd="insertUnorderedList"><i class="fa-solid fa-list-ul"></i></button>
+            </div>
         </div>
 
         <div id="mobileEditorInput" class="rich-editor modal-rich-editor" contenteditable="true" placeholder="Add to MyPocket"></div>

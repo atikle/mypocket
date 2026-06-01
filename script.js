@@ -80,8 +80,14 @@ const loginBtn = document.getElementById('loginBtn');
 const mainContentContainer = document.getElementById('mainContentContainer');
 const loginPromptMessage = document.getElementById('loginPromptMessage');
 
+// --- Haptic Feedback Helper ---
+function triggerHaptic(duration = 10) {
+    if ('vibrate' in navigator) {
+        navigator.vibrate(duration);
+    }
+}
+
 // --- Rich Text Toolbar Logic ---
-// We use 'mousedown' instead of 'click' so the button doesn't steal focus from the text area.
 document.addEventListener('mousedown', (e) => {
     const btn = e.target.closest('.editor-toolbar button');
     if (!btn) return;
@@ -96,7 +102,7 @@ document.addEventListener('mousedown', (e) => {
     document.execCommand(cmd, false, val);
 });
 
-// Prevent form submission if a toolbar button is clicked (in case mousedown doesn't catch the click action on some devices)
+// Prevent form submission if a toolbar button is clicked
 document.addEventListener('click', (e) => {
     if (e.target.closest('.editor-toolbar button')) {
         e.preventDefault();
@@ -393,6 +399,8 @@ menuClearAllBtn.addEventListener('click', async (e) => {
             });
 
             await Promise.all(deletePromises);
+            
+            triggerHaptic(50); // Heavier buzz for deletion
 
             resetMenuClearAllBtn();
             closeUnifiedModal();
@@ -726,7 +734,25 @@ function renderPocketGrid(items) {
     pocketGridContainer.innerHTML = '';
 
     if (isPocketEmpty) {
-        pocketGridContainer.innerHTML = '<p class="pocket-empty-message">You have not saved anything yet</p>';
+        pocketGridContainer.innerHTML = `
+            <div class="empty-state-container">
+                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="var(--text-color-2)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.3; margin-bottom: 20px;">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                <p class="pocket-empty-message" style="margin-top:0;">You have not saved anything yet</p>
+                
+                <div class="empty-state-arrow">
+                    <p style="color: var(--pocket-brand); font-weight: 500; font-size: 14px; margin-bottom: 5px;">Tap to add your first note</p>
+                    <svg width="40" height="60" viewBox="0 0 24 24" fill="none" stroke="var(--pocket-brand)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 3c0 8 5 13 14 13M12 9l7 7-7 7"/>
+                    </svg>
+                </div>
+            </div>
+        `;
         emailListBtn.disabled = true;
         emailListBtn.setAttribute('aria-disabled', 'true');
         downloadPdfBtn.disabled = true;
@@ -1053,6 +1079,7 @@ function closeMobileEditor() {
 
 // FAB Click -> Open blank modal for a NEW item
 mobileFab.addEventListener('click', () => {
+    triggerHaptic(15);
     openMobileEditor();
 });
 
@@ -1061,6 +1088,7 @@ closeMobileEditorBtn.addEventListener('click', closeMobileEditor);
 
 // Save button -> Decides whether to update or create
 saveMobileEditorBtn.addEventListener('click', () => {
+    triggerHaptic([10, 30, 10]); // A satisfying double-buzz for saving
     const htmlContent = mobileEditorInput.innerHTML;
     
     if (activeMobileEditId) {
@@ -1070,6 +1098,47 @@ saveMobileEditorBtn.addEventListener('click', () => {
     }
     closeMobileEditor();
 });
+
+// --- Mobile Swipe Gestures ---
+let touchStartX = 0;
+let touchEndX = 0;
+const SWIPE_THRESHOLD = 90; // Pixels required to trigger the action
+
+pocketGridContainer.addEventListener('touchstart', e => {
+    // Only apply on mobile screens
+    if (window.innerWidth > 640) return; 
+    const item = e.target.closest('.pocket-post-item');
+    if (!item) return;
+    
+    touchStartX = e.changedTouches[0].screenX;
+}, { passive: true });
+
+pocketGridContainer.addEventListener('touchend', e => {
+    if (window.innerWidth > 640) return;
+    const item = e.target.closest('.pocket-post-item');
+    if (!item) return;
+    
+    touchEndX = e.changedTouches[0].screenX;
+    handleSwipeGesture(item);
+});
+
+function handleSwipeGesture(item) {
+    const swipeDist = touchEndX - touchStartX;
+    const itemId = item.dataset.id;
+    
+    // Swipe Left to Delete
+    if (swipeDist < -SWIPE_THRESHOLD) {
+        triggerHaptic(20);
+        item.classList.add('pocket-item-fade-out');
+        setTimeout(() => deletePocketItem(itemId), 300);
+    } 
+    // Swipe Right to Edit
+    else if (swipeDist > SWIPE_THRESHOLD) {
+        triggerHaptic(10);
+        const currentHTML = item.querySelector('.item-text').innerHTML;
+        openMobileEditor(itemId, currentHTML);
+    }
+}
 
 // --- PWA Install Logic ---
 let deferredPrompt;
