@@ -699,12 +699,17 @@
             margin-bottom: 15px;
         }
         .modal-avatar-img {
-            width: 80px;
-            height: 80px;
+            width: 130px; /* Increased from 80px */
+            height: 130px; /* Increased from 80px */
             border-radius: 50%;
             object-fit: cover;
-            margin-bottom: 15px;
-            border: 2px solid var(--border-color-1);
+            margin-bottom: 20px; 
+            border: 3px solid var(--border-color-1); /* Slightly thicker border */
+            box-shadow: var(--shadow-2); /* Added shadow to make it pop */
+        }
+        body.modal-open {
+            overflow: hidden;
+            touch-action: none; /* Prevents mobile scroll bouncing */
         }
         .modal-user-name {
             font-size: 20px;

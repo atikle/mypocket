@@ -211,10 +211,12 @@ async function initFirebase() {
 // --- Unified Modal Logic ---
 function openUnifiedModal() {
     unifiedModalOverlay.classList.add('show');
+    document.body.classList.add('modal-open'); // Lock background scrolling
 }
 
 function closeUnifiedModal() {
     unifiedModalOverlay.classList.remove('show');
+    document.body.classList.remove('modal-open'); // Restore background scrolling
     resetMenuClearAllBtn(); // Resets the "Are you sure?" clear all state
 }
 
