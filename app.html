@@ -1052,6 +1052,110 @@
                 right: calc(20px + env(safe-area-inset-right));
             }
         }
+        /* --- Mobile FAB & Fullscreen Modal --- */
+        .mobile-fab {
+            display: none; 
+            position: fixed;
+            bottom: calc(30px + env(safe-area-inset-bottom));
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: var(--pocket-brand);
+            color: white;
+            border: none;
+            box-shadow: 0 6px 16px rgba(239, 64, 86, 0.4);
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 900;
+            transition: transform var(--transition-speed-fast) var(--ease-out-quad), box-shadow var(--transition-speed-fast);
+        }
+        .mobile-fab:active {
+            transform: scale(0.9);
+        }
+
+        .editor-modal {
+            position: fixed;
+            top: 100%; /* Start completely off-screen at the bottom */
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--background-1);
+            z-index: 1050;
+            display: flex;
+            flex-direction: column;
+            transition: top 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            padding-top: env(safe-area-inset-top);
+        }
+        .editor-modal.open {
+            top: 0; /* Slide up to cover screen */
+        }
+
+        .editor-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            border-bottom: 1px solid var(--border-color-1);
+            background-color: var(--background-1);
+        }
+
+        .editor-modal-header .icon-btn {
+            background: none;
+            border: none;
+            color: var(--text-color-1);
+            font-size: 20px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .editor-modal-header .save-btn {
+            color: var(--pocket-save);
+            background-color: rgba(46, 204, 113, 0.1);
+        }
+
+        .modal-toolbar {
+            border-radius: 0;
+            border-left: none;
+            border-right: none;
+            background-color: var(--background-2);
+            overflow-x: auto; /* Allow scrolling if toolbar gets too wide on narrow phones */
+            flex-wrap: nowrap;
+            -ms-overflow-style: none;  
+            scrollbar-width: none; 
+        }
+        .modal-toolbar::-webkit-scrollbar { display: none; }
+
+        .modal-rich-editor {
+            flex-grow: 1;
+            border: none;
+            border-radius: 0;
+            box-shadow: none;
+            max-height: none;
+            padding: 20px;
+            font-size: 16px;
+            background-color: var(--background-1);
+        }
+        .modal-rich-editor:focus {
+            box-shadow: none;
+            border: none;
+        }
+
+        /* --- Mobile Breakpoint Overrides --- */
+        @media (max-width: 640px) {
+            .add-item-form {
+                display: none !important; /* Hide desktop input form entirely */
+            }
+            .mobile-fab {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1195,6 +1299,35 @@
                 </button>
             </div>
         </div>
+    </div>
+
+    <button id="mobileFab" class="mobile-fab" aria-label="Add Note">
+        <i class="fa-solid fa-plus"></i>
+    </button>
+
+    <div id="mobileEditorModal" class="editor-modal">
+        <div class="editor-modal-header">
+            <button id="closeMobileEditorBtn" class="icon-btn" aria-label="Close">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <button id="saveMobileEditorBtn" class="icon-btn save-btn" aria-label="Save">
+                <i class="fa-solid fa-check"></i>
+            </button>
+        </div>
+        
+        <div class="editor-toolbar modal-toolbar">
+            <button type="button" data-cmd="formatBlock" data-val="<h1>">H1</button>
+            <button type="button" data-cmd="formatBlock" data-val="<h2>">H2</button>
+            <button type="button" data-cmd="formatBlock" data-val="<h3>">H3</button>
+            <button type="button" data-cmd="bold"><i class="fa-solid fa-bold"></i></button>
+            <button type="button" data-cmd="italic"><i class="fa-solid fa-italic"></i></button>
+            <button type="button" data-cmd="underline"><i class="fa-solid fa-underline"></i></button>
+            <button type="button" data-cmd="strikeThrough"><i class="fa-solid fa-strikethrough"></i></button>
+            <button type="button" data-cmd="hiliteColor" data-val="#ffff00"><i class="fa-solid fa-highlighter"></i></button>
+            <button type="button" data-cmd="insertUnorderedList"><i class="fa-solid fa-list-ul"></i></button>
+        </div>
+
+        <div id="mobileEditorInput" class="rich-editor modal-rich-editor" contenteditable="true" placeholder="Note"></div>
     </div>
 
     <script>

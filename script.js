@@ -44,6 +44,13 @@ const addItemForm = document.getElementById('addItemForm');
 const addItemInput = document.getElementById('addItemInput');
 const searchInput = document.getElementById('searchInput');
 const clearSearchBtn = document.getElementById('clearSearchBtn');
+// Mobile Editor Elements
+const mobileFab = document.getElementById('mobileFab');
+const mobileEditorModal = document.getElementById('mobileEditorModal');
+const closeMobileEditorBtn = document.getElementById('closeMobileEditorBtn');
+const saveMobileEditorBtn = document.getElementById('saveMobileEditorBtn');
+const mobileEditorInput = document.getElementById('mobileEditorInput');
+let activeMobileEditId = null;
 
 // Settings Elements
 const menuDarkModeToggle = document.getElementById('menuDarkModeToggle');
@@ -899,6 +906,13 @@ pocketGridContainer.addEventListener('click', (e) => {
         const isEditing = itemEl.classList.contains('is-editing');
         const deleteBtnIcon = itemEl.querySelector('.item-delete-btn i');
 
+        // NEW: Intercept for Mobile!
+        if (window.innerWidth <= 640) {
+            const currentHTML = itemEl.querySelector('.item-text').innerHTML;
+            openMobileEditor(itemId, currentHTML);
+            return; // Stop here, do not run the desktop inline-edit logic
+        }
+
         if (isEditing) {
             const editArea = itemEl.querySelector('.rich-editor');
             const newText = editArea.innerHTML;
@@ -1017,6 +1031,44 @@ if (localStorage.getItem(CACHED_USER_KEY) === "true") {
 addItemForm.addEventListener('submit', (e) => {
     e.preventDefault();
     addNewPocketItem(addItemInput.innerHTML);
+});
+
+function openMobileEditor(itemId = null, currentHtml = '') {
+    activeMobileEditId = itemId;
+    mobileEditorInput.innerHTML = currentHtml;
+    mobileEditorModal.classList.add('open');
+    document.body.classList.add('modal-open'); // Prevent background scrolling
+    
+    // Focus the editor after the slide-up animation completes
+    setTimeout(() => mobileEditorInput.focus(), 300);
+}
+
+function closeMobileEditor() {
+    mobileEditorModal.classList.remove('open');
+    document.body.classList.remove('modal-open');
+    mobileEditorInput.blur();
+    activeMobileEditId = null;
+    mobileEditorInput.innerHTML = '';
+}
+
+// FAB Click -> Open blank modal for a NEW item
+mobileFab.addEventListener('click', () => {
+    openMobileEditor();
+});
+
+// Close button
+closeMobileEditorBtn.addEventListener('click', closeMobileEditor);
+
+// Save button -> Decides whether to update or create
+saveMobileEditorBtn.addEventListener('click', () => {
+    const htmlContent = mobileEditorInput.innerHTML;
+    
+    if (activeMobileEditId) {
+        updatePocketItem(activeMobileEditId, htmlContent);
+    } else {
+        addNewPocketItem(htmlContent);
+    }
+    closeMobileEditor();
 });
 
 // --- PWA Install Logic ---
