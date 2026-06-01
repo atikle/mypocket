@@ -407,7 +407,8 @@ function applyTheme(theme) {
         menuThemeText.textContent = 'Dark Mode';
         menuThemeState.textContent = 'On';
 
-        if (themeColorMeta) themeColorMeta.setAttribute('content', '#1c1c1e');
+        // Changed from '#1c1c1e' to '#000000' for a pure OLED black taskbar/navbar
+        if (themeColorMeta) themeColorMeta.setAttribute('content', '#000000'); 
     } else {
         document.documentElement.classList.remove('dark');
         menuThemeIcon.classList.remove('fa-moon');
