@@ -42,16 +42,18 @@ const sortOptionsGroup = document.querySelector('.sort-options-group');
 const viewToggleBtn = document.getElementById('viewToggleBtn');
 const emailListBtn = document.getElementById('emailListBtn');
 const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+const addItemForm = document.getElementById('addItemForm');
+const addItemInput = document.getElementById('addItemInput');
 const searchInput = document.getElementById('searchInput');
 const clearSearchBtn = document.getElementById('clearSearchBtn');
 
-// Unified Editor Elements
-const globalFab = document.getElementById('globalFab');
-const itemEditorModal = document.getElementById('itemEditorModal');
-const closeEditorBtn = document.getElementById('closeEditorBtn');
-const saveEditorBtn = document.getElementById('saveEditorBtn');
-const itemEditorInput = document.getElementById('itemEditorInput');
-let activeEditId = null;
+// Mobile Editor Elements
+const mobileFab = document.getElementById('mobileFab');
+const mobileEditorModal = document.getElementById('mobileEditorModal');
+const closeMobileEditorBtn = document.getElementById('closeMobileEditorBtn');
+const saveMobileEditorBtn = document.getElementById('saveMobileEditorBtn');
+const mobileEditorInput = document.getElementById('mobileEditorInput');
+let activeMobileEditId = null;
 
 // Settings Elements
 const menuDarkModeToggle = document.getElementById('menuDarkModeToggle');
@@ -138,7 +140,9 @@ function sanitizePastedContent(e) {
     }
 }
 
-itemEditorInput.addEventListener('paste', sanitizePastedContent);
+addItemInput.addEventListener('paste', sanitizePastedContent);
+mobileEditorInput.addEventListener('paste', sanitizePastedContent);
+
 
 function showNotification(message, isError = false) {
     if (notificationTimeout) {
@@ -269,9 +273,7 @@ function openUnifiedModal() {
 
 function closeUnifiedModal() {
     unifiedModalOverlay.classList.remove('show');
-    if (!itemEditorModal.classList.contains('open')) {
-        document.body.classList.remove('modal-open'); 
-    }
+    document.body.classList.remove('modal-open'); 
     resetMenuClearAllBtn(); 
 }
 
@@ -344,10 +346,12 @@ async function addNewPocketItem(htmlContent) {
         const itemsColRef = collection(db, 'artifacts', appId, 'users', userId, 'mypocket');
         await addDoc(itemsColRef, newItem);
 
+        addItemInput.innerHTML = ''; 
         localStorage.setItem(POCKET_SORT_KEY, 'latest');
         localStorage.setItem(POCKET_SEARCH_KEY, '');
         searchInput.value = '';
         toggleClearSearchBtn();
+        cancelAllEdits();
 
     } catch (error) {
         console.error("Error adding document: ", error);
@@ -441,6 +445,7 @@ menuClearAllBtn.addEventListener('click', async (e) => {
     } else {
         menuClearAllBtn.classList.add('confirm-active');
         menuClearAllBtn.innerHTML = '<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Are you sure?';
+        cancelAllEdits();
 
         clearTimeout(clearAllTimeout);
         clearAllTimeout = setTimeout(() => {
@@ -579,6 +584,7 @@ sortControlsContainer.addEventListener('click', (e) => {
     clickedButton.setAttribute('aria-pressed', 'true');
     const sortValue = clickedButton.dataset.sort;
     localStorage.setItem(POCKET_SORT_KEY, sortValue);
+    cancelAllEdits();
     renderPocketGrid(currentPocketItems);
 });
 
@@ -595,6 +601,7 @@ function getSortedItems(items) {
 
 // --- Download PDF Logic ---
 function generateAndDownloadPDF() {
+    cancelAllEdits();
     console.log('Generating PDF...');
     try {
         const doc = new jsPDF();
@@ -895,6 +902,7 @@ function renderPocketGrid(items) {
                                     title="Edit"
                                     aria-label="Edit item: '${truncatedText}'">
                                 <i class="fas fa-pencil" aria-hidden="true"></i>
+                                <i class="fas fa-save" aria-hidden="true"></i>
                             </button>
                             <button class="item-action-btn item-delete-btn" 
                                     title="Delete"
@@ -910,13 +918,42 @@ function renderPocketGrid(items) {
     });
 }
 
+// --- Cancel All Edits Logic ---
+function cancelAllEdits() {
+    document.querySelectorAll('.pocket-post-item.is-editing').forEach(itemEl => {
+        itemEl.classList.remove('is-editing');
+        itemEl.querySelector('.editor-toolbar')?.remove();
+        itemEl.querySelector('.rich-editor')?.remove();
+
+        const deleteButton = itemEl.querySelector('.item-delete-btn');
+        const deleteBtnIcon = deleteButton?.querySelector('i');
+        if (deleteBtnIcon) {
+            deleteBtnIcon.className = 'fas fa-trash';
+            deleteButton.title = 'Delete';
+        }
+
+        const editButton = itemEl.querySelector('.item-edit-btn');
+        if (editButton) {
+            const plainTextForAria = itemEl.querySelector('.item-text')?.textContent || 'item';
+            const truncatedText = plainTextForAria.substring(0, 50) + '...';
+            editButton.title = 'Edit';
+            editButton.setAttribute('aria-label', `Edit item: '${truncatedText}'`);
+        }
+    });
+}
+
 // --- Event Delegation ---
 pocketGridContainer.addEventListener('click', (e) => {
-    // Handle Delete
+
     const deleteButton = e.target.closest('.item-delete-btn');
     if (deleteButton) {
         const itemEl = deleteButton.closest('.pocket-post-item');
         const itemId = itemEl.dataset.id;
+
+        if (itemEl.classList.contains('is-editing')) {
+            cancelAllEdits();
+            return;
+        }
 
         itemEl.classList.add('pocket-item-fade-out');
         setTimeout(() => {
@@ -925,14 +962,70 @@ pocketGridContainer.addEventListener('click', (e) => {
         return;
     }
 
-    // Handle Edit (Universally triggers the modal)
     const editButton = e.target.closest('.item-edit-btn');
     if (editButton) {
         const itemEl = editButton.closest('.pocket-post-item');
         const itemId = itemEl.dataset.id;
-        const textDiv = itemEl.querySelector('.item-text');
-        
-        openEditor(itemId, textDiv.innerHTML);
+        const isEditing = itemEl.classList.contains('is-editing');
+        const deleteBtnIcon = itemEl.querySelector('.item-delete-btn i');
+
+        if (window.innerWidth <= 640) {
+            const currentHTML = itemEl.querySelector('.item-text').innerHTML;
+            openMobileEditor(itemId, currentHTML);
+            return; 
+        }
+
+        if (isEditing) {
+            const editArea = itemEl.querySelector('.rich-editor');
+            const newText = editArea.innerHTML;
+            updatePocketItem(itemId, newText);
+        } else {
+            cancelAllEdits();
+            const textDiv = itemEl.querySelector('.item-text');
+            const currentHTML = textDiv.innerHTML;
+
+            const editToolbar = document.createElement('div');
+            editToolbar.className = 'editor-toolbar';
+            editToolbar.innerHTML = `
+                <button type="button" data-cmd="formatBlock" data-val="<h1>">H1</button>
+                <button type="button" data-cmd="formatBlock" data-val="<h2>">H2</button>
+                <button type="button" data-cmd="formatBlock" data-val="<h3>">H3</button>
+                <button type="button" data-cmd="bold"><i class="fa-solid fa-bold"></i></button>
+                <button type="button" data-cmd="italic"><i class="fa-solid fa-italic"></i></button>
+                <button type="button" data-cmd="underline"><i class="fa-solid fa-underline"></i></button>
+                <button type="button" data-cmd="strikeThrough"><i class="fa-solid fa-strikethrough"></i></button>
+                <button type="button" data-cmd="hiliteColor" data-val="#ffff00"><i class="fa-solid fa-highlighter"></i></button>
+                <button type="button" data-cmd="insertUnorderedList"><i class="fa-solid fa-list-ul"></i></button>
+            `;
+
+            const editTextArea = document.createElement('div');
+            editTextArea.className = 'rich-editor';
+            editTextArea.contentEditable = "true";
+            editTextArea.innerHTML = currentHTML;
+
+            editTextArea.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    cancelAllEdits();
+                } else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+                    event.preventDefault();
+                    updatePocketItem(itemId, editTextArea.innerHTML);
+                }
+            });
+
+            const postBody = itemEl.querySelector('.post-body');
+            postBody.appendChild(editToolbar);
+            postBody.appendChild(editTextArea);
+            itemEl.classList.add('is-editing');
+
+            if (deleteBtnIcon) {
+                deleteBtnIcon.className = 'fas fa-xmark';
+                itemEl.querySelector('.item-delete-btn').title = 'Cancel';
+            }
+
+            editTextArea.focus();
+            editButton.title = 'Save';
+        }
     }
 });
 
@@ -947,12 +1040,14 @@ function toggleClearSearchBtn() {
 searchInput.addEventListener('input', () => {
     localStorage.setItem(POCKET_SEARCH_KEY, searchInput.value);
     toggleClearSearchBtn();
+    cancelAllEdits();
     renderPocketGrid(currentPocketItems);
 });
 clearSearchBtn.addEventListener('click', () => {
     searchInput.value = '';
     localStorage.setItem(POCKET_SEARCH_KEY, '');
     toggleClearSearchBtn();
+    cancelAllEdits();
     renderPocketGrid(currentPocketItems);
     searchInput.focus();
 });
@@ -960,11 +1055,13 @@ clearSearchBtn.addEventListener('click', () => {
 // --- Real-time Sync Listener ---
 window.addEventListener('storage', (e) => {
     if (e.key === POCKET_SORT_KEY) {
+        cancelAllEdits();
         renderPocketGrid(currentPocketItems);
     }
     if (e.key === POCKET_SEARCH_KEY) {
         searchInput.value = localStorage.getItem(POCKET_SEARCH_KEY) || '';
         toggleClearSearchBtn();
+        cancelAllEdits();
         renderPocketGrid(currentPocketItems);
     }
     if (e.key === POCKET_THEME_KEY) {
@@ -996,46 +1093,44 @@ if (localStorage.getItem(CACHED_USER_KEY) === "true") {
     }
 }
 
-// --- Universal Editor Modal Functions ---
-function openEditor(itemId = null, currentHtml = '') {
-    activeEditId = itemId;
-    itemEditorInput.innerHTML = currentHtml;
-    itemEditorModal.classList.add('open');
-    document.body.classList.add('modal-open'); 
-    
-    setTimeout(() => itemEditorInput.focus(), 300);
-}
-
-function closeEditor() {
-    itemEditorModal.classList.remove('open');
-    document.body.classList.remove('modal-open');
-    itemEditorInput.blur();
-    activeEditId = null;
-    itemEditorInput.innerHTML = '';
-}
-
-globalFab.addEventListener('click', () => {
-    triggerHaptic(15);
-    openEditor();
+addItemForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    addNewPocketItem(addItemInput.innerHTML);
 });
 
-closeEditorBtn.addEventListener('click', closeEditor);
+function openMobileEditor(itemId = null, currentHtml = '') {
+    activeMobileEditId = itemId;
+    mobileEditorInput.innerHTML = currentHtml;
+    mobileEditorModal.classList.add('open');
+    document.body.classList.add('modal-open'); 
+    
+    setTimeout(() => mobileEditorInput.focus(), 300);
+}
 
-saveEditorBtn.addEventListener('click', () => {
+function closeMobileEditor() {
+    mobileEditorModal.classList.remove('open');
+    document.body.classList.remove('modal-open');
+    mobileEditorInput.blur();
+    activeMobileEditId = null;
+    mobileEditorInput.innerHTML = '';
+}
+
+mobileFab.addEventListener('click', () => {
+    triggerHaptic(15);
+    openMobileEditor();
+});
+
+closeMobileEditorBtn.addEventListener('click', closeMobileEditor);
+
+saveMobileEditorBtn.addEventListener('click', () => {
     triggerHaptic([10, 30, 10]); 
-    const htmlContent = itemEditorInput.innerHTML;
-    if (activeEditId) {
-        updatePocketItem(activeEditId, htmlContent);
+    const htmlContent = mobileEditorInput.innerHTML;
+    if (activeMobileEditId) {
+        updatePocketItem(activeMobileEditId, htmlContent);
     } else {
         addNewPocketItem(htmlContent);
     }
-    closeEditor();
-});
-
-window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && itemEditorModal.classList.contains('open')) {
-        closeEditor();
-    }
+    closeMobileEditor();
 });
 
 // --- PWA Install Logic ---
