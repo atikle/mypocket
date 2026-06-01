@@ -1,9 +1,10 @@
-const CACHE_NAME = 'mypocket-cache-v1.0.0';
+const CACHE_NAME = 'mypocket-cache-v0.0.1';
 const OFFLINE_URL = './app.html'; // Fallback to main app since it works offline via Firestore
 
 const ASSETS_TO_CACHE = [
     './',
     './app.html',
+    './script.js',
     './login.html',
     
     // Fonts
