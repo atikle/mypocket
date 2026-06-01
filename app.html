@@ -199,6 +199,80 @@
             object-fit: cover;
         }
 
+        /* --- Rich Text Editor Toolbar --- */
+        .editor-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            padding: 8px;
+            background-color: var(--background-2);
+            border: 1px solid var(--border-color-1);
+            border-bottom: none;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+            align-items: center;
+        }
+        .editor-toolbar button {
+            background: none;
+            border: none;
+            color: var(--text-color-2);
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all var(--transition-speed-fast);
+        }
+        .editor-toolbar button:hover {
+            background-color: var(--hover-overlay);
+            color: var(--text-color-1);
+        }
+        /* Adjust main rich text editors */
+        .rich-editor {
+            font-family: 'Inter', sans-serif;
+            width: 100%;
+            padding: 12px 20px;
+            border: 1px solid var(--border-color-1);
+            background-color: var(--card-background-1);
+            color: var(--text-color-1);
+            font-size: 15px;
+            line-height: 1.6;
+            outline: none;
+            min-height: 100px;
+            max-height: 500px;
+            overflow-y: auto;
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
+            transition: all var(--transition-speed-fast) ease-out;
+        }
+        .add-item-form .rich-editor {
+            box-shadow: var(--shadow-1);
+        }
+        .rich-editor:focus {
+            border-color: var(--pocket-brand);
+            box-shadow: 0 0 0 3px rgba(239, 64, 86, 0.2);
+        }
+        /* Contenteditable Placeholder workaround */
+        .rich-editor[contenteditable]:empty::before {
+            content: attr(placeholder);
+            color: var(--text-color-2);
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        /* Styling list markup inside notes */
+        .item-text ul, .rich-editor ul {
+            margin-left: 20px;
+            padding-left: 5px;
+            list-style-type: disc;
+        }
+        .item-text h1, .rich-editor h1 { font-size: 1.6rem; margin: 8px 0; }
+        .item-text h2, .rich-editor h2 { font-size: 1.4rem; margin: 6px 0; }
+        .item-text h3, .rich-editor h3 { font-size: 1.2rem; margin: 4px 0; }
+
         .add-item-form {
             position: relative;
             margin-top: 8vh;
@@ -1006,8 +1080,25 @@
         <div id="mainContentContainer">
             <form class="add-item-form" id="addItemForm">
                 <label for="addItemInput" class="visually-hidden">Add new item</label>
-                <textarea id="addItemInput" class="add-item-input" placeholder="Add item to My Pocket" rows="3"></textarea>
-                <button type="submit" class="add-item-btn" title="Save Item" aria-label="Save Item">
+                
+                <!-- Formatting Toolbar -->
+                <div class="editor-toolbar" id="mainToolbar">
+                    <button type="button" data-cmd="formatBlock" data-val="<h1>" title="Heading 1">H1</button>
+                    <button type="button" data-cmd="formatBlock" data-val="<h2>" title="Heading 2">H2</button>
+                    <button type="button" data-cmd="formatBlock" data-val="<h3>" title="Heading 3">H3</button>
+                    <button type="button" data-cmd="bold" title="Bold"><i class="fa-solid fa-bold"></i></button>
+                    <button type="button" data-cmd="italic" title="Italic"><i class="fa-solid fa-italic"></i></button>
+                    <button type="button" data-cmd="underline" title="Underline"><i class="fa-solid fa-underline"></i></button>
+                    <button type="button" data-cmd="strikeThrough" title="Strikethrough"><i class="fa-solid fa-strikethrough"></i></button>
+                    <button type="button" data-cmd="hiliteColor" data-val="#ffff00" title="Highlight"><i class="fa-solid fa-highlighter"></i></button>
+                    <button type="button" data-cmd="insertUnorderedList" title="Bulleted List"><i class="fa-solid fa-list-ul"></i></button>
+                    <button type="button" data-cmd="removeFormat" title="Clear Formatting"><i class="fa-solid fa-eraser"></i></button>
+                </div>
+
+                <!-- ContentEditable replacement for Textarea -->
+                <div id="addItemInput" class="rich-editor" contenteditable="true" placeholder="Add item to My Pocket"></div>
+                
+                <button type="submit" class="add-item-btn" title="Save Item" aria-label="Save Item" style="bottom: 15px; right: 15px;">
                     <i class="fa-solid fa-plus" aria-hidden="true"></i>
                 </button>
             </form>

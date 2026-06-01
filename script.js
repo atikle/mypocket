@@ -73,23 +73,17 @@ const loginBtn = document.getElementById('loginBtn');
 const mainContentContainer = document.getElementById('mainContentContainer');
 const loginPromptMessage = document.getElementById('loginPromptMessage');
 
-
-// --- Textarea Auto-Resize Logic ---
-function autoResizeTextarea(el) {
-    el.style.height = 'auto';
-    const scHeight = el.scrollHeight;
-    const maxHeight = el.classList.contains('edit-textarea') ? 300 : 500;
-    if (scHeight > maxHeight) {
-        el.style.height = `${maxHeight}px`;
-        el.style.overflowY = 'auto';
-    } else {
-        el.style.height = `${scHeight}px`;
-        el.style.overflowY = 'hidden';
-    }
-}
-
-addItemInput.addEventListener('input', () => {
-    autoResizeTextarea(addItemInput);
+// --- Rich Text Toolbar Logic ---
+document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.editor-toolbar button');
+    if (!btn) return;
+    e.preventDefault();
+    
+    const cmd = btn.dataset.cmd;
+    const val = btn.dataset.val || null;
+    
+    // Execute rich text commands across highlighted selections
+    document.execCommand(cmd, false, val);
 });
 
 function showNotification(message, isError = false) {
@@ -272,9 +266,7 @@ async function setupFirestoreListener(appId, uid) {
         });
 
         currentPocketItems = items;
-        
         localStorage.setItem(CACHED_ITEMS_KEY, JSON.stringify(items));
-        
         renderPocketGrid(items);
 
     }, (error) => {
@@ -283,15 +275,15 @@ async function setupFirestoreListener(appId, uid) {
     });
 }
 
-async function addNewPocketItem(text) {
-    if (!text || text.trim() === '') return;
+async function addNewPocketItem(htmlContent) {
+    if (!htmlContent || htmlContent.trim() === '' || htmlContent === '<br>') return;
     if (!userId) {
         showNotification("You must be logged in to add items.", true);
         return;
     }
 
     const newItem = {
-        text: text.trim(),
+        text: htmlContent.trim(), // Storing rich HTML content
         dateAdded: new Date().toISOString(),
         wasEdited: false
     };
@@ -300,8 +292,7 @@ async function addNewPocketItem(text) {
         const itemsColRef = collection(db, 'artifacts', appId, 'users', userId, 'mypocket');
         await addDoc(itemsColRef, newItem);
 
-        addItemInput.value = '';
-        autoResizeTextarea(addItemInput);
+        addItemInput.innerHTML = ''; // Reset rich text area
         localStorage.setItem(POCKET_SORT_KEY, 'latest');
         localStorage.setItem(POCKET_SEARCH_KEY, '');
         searchInput.value = '';
@@ -335,7 +326,7 @@ async function updatePocketItem(itemId, newText) {
         return;
     }
 
-    if (!newText || newText.trim() === '') {
+    if (!newText || newText.trim() === '' || newText === '<br>') {
         deletePocketItem(itemId);
         return;
     }
@@ -534,9 +525,12 @@ function generateAndDownloadPDF() {
         const allItems = getSortedItems(currentPocketItems);
         const sortPreference = localStorage.getItem(POCKET_SORT_KEY) || 'latest';
         const searchTerm = (localStorage.getItem(POCKET_SEARCH_KEY) || '').toLowerCase();
-        const items = searchTerm ? allItems.filter(item =>
-            item.text.toLowerCase().includes(searchTerm)
-        ) : allItems;
+        
+        // Match searching with stripped HTML strings
+        const items = searchTerm ? allItems.filter(item => {
+            const plainText = item.text.replace(/<[^>]*>/g, '').toLowerCase();
+            return plainText.includes(searchTerm);
+        }) : allItems;
 
         const PAGE_MARGIN = 15;
         const PAGE_WIDTH = doc.internal.pageSize.getWidth();
@@ -613,6 +607,7 @@ function generateAndDownloadPDF() {
         }
         addPageHeader();
         addPageInfo();
+        
         if (items.length === 0) {
             doc.setFontSize(12);
             doc.setTextColor('#65676b');
@@ -635,7 +630,16 @@ function generateAndDownloadPDF() {
                         cursor += 20;
                     }
                 }
-                const textLines = doc.splitTextToSize(item.text, CONTENT_WIDTH - 20);
+                
+                // Strip HTML tags for clean PDF generation
+                let plainText = item.text
+                                    .replace(/<br\s*[\/]?>/gi, "\n")
+                                    .replace(/<li>/gi, "\n• ")
+                                    .replace(/<\/li>/gi, "")
+                                    .replace(/<[^>]*>/g, '')
+                                    .replace(/&nbsp;/gi, " ");
+
+                const textLines = doc.splitTextToSize(plainText.trim(), CONTENT_WIDTH - 20);
                 const textHeight = doc.getTextDimensions(textLines).h;
                 const totalCardHeight = textHeight + 10 + 30; // text, date, padding
                 checkPageBreak(totalCardHeight + 10);
@@ -695,9 +699,12 @@ function renderPocketGrid(items) {
     const isPocketEmpty = items.length === 0;
     const searchTerm = (localStorage.getItem(POCKET_SEARCH_KEY) || '').toLowerCase();
     const sortedItems = getSortedItems(items);
-    const filteredItems = searchTerm ? sortedItems.filter(item =>
-        item.text.toLowerCase().includes(searchTerm)
-    ) : sortedItems;
+    
+    // Filter matching on stripped text so HTML tags don't break searches
+    const filteredItems = searchTerm ? sortedItems.filter(item => {
+        const plainText = item.text.replace(/<[^>]*>/g, '').toLowerCase();
+        return plainText.includes(searchTerm);
+    }) : sortedItems;
 
     pocketGridContainer.innerHTML = '';
 
@@ -784,12 +791,12 @@ function renderPocketGrid(items) {
         const wasEdited = item.wasEdited || false;
         const editedIndicator = wasEdited ? '<span class="edited-indicator">(edited)</span>' : '';
 
-        const textNode = document.createTextNode(item.text);
         const textDiv = document.createElement('div');
         textDiv.className = 'item-text';
-        textDiv.appendChild(textNode);
+        textDiv.innerHTML = item.text;
 
-        const truncatedText = item.text.length > 50 ? item.text.substring(0, 50) + '...' : item.text;
+        const plainTextForAria = item.text.replace(/<[^>]*>/g, '');
+        const truncatedText = plainTextForAria.length > 50 ? plainTextForAria.substring(0, 50) + '...' : plainTextForAria;
 
         itemEl.innerHTML = `
                     <div class="post-header">
@@ -804,7 +811,7 @@ function renderPocketGrid(items) {
                         </div>
                     <div class="post-footer">
                         <div class="item-actions">
-                            <a href="https://www.google.com/search?q=${encodeURIComponent(item.text)}" 
+                            <a href="https://www.google.com/search?q=${encodeURIComponent(plainTextForAria)}" 
                                target="_blank" 
                                class="item-action-btn item-search-btn" 
                                title="Search on Google"
@@ -827,7 +834,6 @@ function renderPocketGrid(items) {
                 `;
 
         itemEl.querySelector('.post-body').prepend(textDiv);
-
         pocketGridContainer.appendChild(itemEl);
     });
 }
@@ -836,7 +842,8 @@ function renderPocketGrid(items) {
 function cancelAllEdits() {
     document.querySelectorAll('.pocket-post-item.is-editing').forEach(itemEl => {
         itemEl.classList.remove('is-editing');
-        itemEl.querySelector('.edit-textarea')?.remove();
+        itemEl.querySelector('.editor-toolbar')?.remove();
+        itemEl.querySelector('.rich-editor')?.remove();
 
         const deleteButton = itemEl.querySelector('.item-delete-btn');
         const deleteBtnIcon = deleteButton?.querySelector('i');
@@ -847,7 +854,8 @@ function cancelAllEdits() {
 
         const editButton = itemEl.querySelector('.item-edit-btn');
         if (editButton) {
-            const truncatedText = itemEl.querySelector('.item-text')?.textContent.substring(0, 50) + '...' || 'item';
+            const plainTextForAria = itemEl.querySelector('.item-text')?.textContent || 'item';
+            const truncatedText = plainTextForAria.substring(0, 50) + '...';
             editButton.title = 'Edit';
             editButton.setAttribute('aria-label', `Edit item: '${truncatedText}'`);
         }
@@ -882,19 +890,32 @@ pocketGridContainer.addEventListener('click', (e) => {
         const deleteBtnIcon = itemEl.querySelector('.item-delete-btn i');
 
         if (isEditing) {
-            const editTextArea = itemEl.querySelector('.edit-textarea');
-            const newText = editTextArea.value;
+            const editArea = itemEl.querySelector('.rich-editor');
+            const newText = editArea.innerHTML;
             updatePocketItem(itemId, newText);
         } else {
             cancelAllEdits();
             const textDiv = itemEl.querySelector('.item-text');
-            const currentText = textDiv.textContent;
+            const currentHTML = textDiv.innerHTML;
 
-            const editTextArea = document.createElement('textarea');
-            editTextArea.className = 'edit-textarea';
-            editTextArea.value = currentText;
+            const editToolbar = document.createElement('div');
+            editToolbar.className = 'editor-toolbar';
+            editToolbar.innerHTML = `
+                <button type="button" data-cmd="formatBlock" data-val="<h1>">H1</button>
+                <button type="button" data-cmd="formatBlock" data-val="<h2>">H2</button>
+                <button type="button" data-cmd="formatBlock" data-val="<h3>">H3</button>
+                <button type="button" data-cmd="bold"><i class="fa-solid fa-bold"></i></button>
+                <button type="button" data-cmd="italic"><i class="fa-solid fa-italic"></i></button>
+                <button type="button" data-cmd="underline"><i class="fa-solid fa-underline"></i></button>
+                <button type="button" data-cmd="strikeThrough"><i class="fa-solid fa-strikethrough"></i></button>
+                <button type="button" data-cmd="hiliteColor" data-val="#ffff00"><i class="fa-solid fa-highlighter"></i></button>
+                <button type="button" data-cmd="insertUnorderedList"><i class="fa-solid fa-list-ul"></i></button>
+            `;
 
-            editTextArea.addEventListener('input', () => autoResizeTextarea(editTextArea));
+            const editTextArea = document.createElement('div');
+            editTextArea.className = 'rich-editor';
+            editTextArea.contentEditable = "true";
+            editTextArea.innerHTML = currentHTML;
 
             editTextArea.addEventListener('keydown', (event) => {
                 if (event.key === 'Escape') {
@@ -902,11 +923,13 @@ pocketGridContainer.addEventListener('click', (e) => {
                     cancelAllEdits();
                 } else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
                     event.preventDefault();
-                    updatePocketItem(itemId, editTextArea.value);
+                    updatePocketItem(itemId, editTextArea.innerHTML);
                 }
             });
 
-            itemEl.querySelector('.post-body').appendChild(editTextArea);
+            const postBody = itemEl.querySelector('.post-body');
+            postBody.appendChild(editToolbar);
+            postBody.appendChild(editTextArea);
             itemEl.classList.add('is-editing');
 
             if (deleteBtnIcon) {
@@ -914,12 +937,8 @@ pocketGridContainer.addEventListener('click', (e) => {
                 itemEl.querySelector('.item-delete-btn').title = 'Cancel';
             }
 
-            autoResizeTextarea(editTextArea);
             editTextArea.focus();
-
-            const truncatedText = currentText.length > 50 ? currentText.substring(0, 50) + '...' : currentText;
             editButton.title = 'Save';
-            editButton.setAttribute('aria-label', `Save changes for: '${truncatedText}'`);
         }
     }
 });
@@ -987,7 +1006,7 @@ if (localStorage.getItem(CACHED_USER_KEY) === "true") {
 
 addItemForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    addNewPocketItem(addItemInput.value);
+    addNewPocketItem(addItemInput.innerHTML);
 });
 
 // --- PWA Install Logic ---
