@@ -52,6 +52,8 @@ const menuThemeText = document.getElementById('menuThemeText');
 const menuThemeState = document.getElementById('menuThemeState');
 const menuDownloadPdfBtn = document.getElementById('menuDownloadPdfBtn');
 const menuClearAllBtn = document.getElementById('menuClearAllBtn');
+const menuEmailListBtn = document.getElementById('menuEmailListBtn');
+const menuInstallAppBtn = document.getElementById('menuInstallAppBtn');
 
 // Unified Modal DOM
 const userProfileBtn = document.getElementById('userProfileBtn');
@@ -673,6 +675,20 @@ menuDownloadPdfBtn.addEventListener('keydown', (e) => {
         closeUnifiedModal();
     }
 });
+if (menuEmailListBtn) {
+    menuEmailListBtn.addEventListener('click', () => {
+        emailItemsDirectly();
+        closeUnifiedModal();
+    });
+
+    menuEmailListBtn.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            emailItemsDirectly();
+            closeUnifiedModal();
+        }
+    });
+}
 
 // --- Render Logic ---
 function renderPocketGrid(items) {
@@ -973,6 +989,39 @@ addItemForm.addEventListener('submit', (e) => {
     e.preventDefault();
     addNewPocketItem(addItemInput.value);
 });
+
+// --- PWA Install Logic ---
+let deferredPrompt;
+
+// Listen for the beforeinstallprompt event to intercept the default browser prompt
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevent the mini-infobar from appearing on mobile
+    e.preventDefault();
+    // Stash the event so it can be triggered later.
+    deferredPrompt = e;
+    // Show the "Install App" button in the modal
+    if (menuInstallAppBtn) {
+        menuInstallAppBtn.style.display = 'flex';
+    }
+});
+
+if (menuInstallAppBtn) {
+    menuInstallAppBtn.addEventListener('click', async () => {
+        if (deferredPrompt) {
+            // Show the install prompt
+            deferredPrompt.prompt();
+            // Wait for the user to respond to the prompt
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User response to the install prompt: ${outcome}`);
+            // We've used the prompt, and can't use it again, throw it away
+            deferredPrompt = null;
+            // Hide the button again
+            menuInstallAppBtn.style.display = 'none';
+            // Close the modal
+            closeUnifiedModal();
+        }
+    });
+};
 
 // Boot Firebase in the background
 initFirebase();
