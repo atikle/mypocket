@@ -166,6 +166,85 @@
             position: relative;
         }
 
+        /* Unified Modal Base Styles[cite: 1] */
+        .unified-modal {
+            text-align: center;
+            padding: 40px 20px 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            /* Liquid glass aesthetic */
+            background-color: rgba(255, 255, 255, 0.85); 
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color-1);
+            box-shadow: var(--shadow-1);
+        }
+
+        html.dark .unified-modal {
+            background-color: rgba(28, 28, 30, 0.85);
+        }
+
+        /* Settings List within Modal[cite: 1] */
+        .settings-menu-list {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        .settings-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-color-1);
+            background: transparent;
+            border: none;
+            width: 100%;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background-color var(--transition-speed-fast) var(--ease-out-quad);
+        }
+
+        .settings-menu-item:hover {
+            background-color: var(--hover-overlay);
+        }
+
+        .settings-menu-item.toggle-item {
+            justify-content: space-between;
+        }
+
+        .settings-menu-item i.fa-solid {
+            width: 20px;
+            text-align: center;
+            font-size: 18px;
+        }
+
+        /* Mobile Fullscreen Override[cite: 1] */
+        @media (max-width: 640px) {
+            .unified-modal {
+                width: 100vw;
+                height: 100vh;
+                max-width: none;
+                border-radius: 0;
+                top: 0;
+                left: 0;
+                /* Remove the -50% translation so it anchors to the top-left */
+                transform: none; 
+                padding-top: calc(60px + env(safe-area-inset-top));
+                justify-content: flex-start;
+                border: none;
+            }
+            
+            /* Ensure it doesn't try to re-center when the 'show' class is applied[cite: 1] */
+            .modal-overlay.show .unified-modal {
+                transform: none; 
+            }
+        }
+
         #auth-controls {
             display: flex;
             align-items: center;
@@ -992,35 +1071,58 @@
             My Pocket
         </h1>
         
+        <!-- Updated Header Controls (Settings button removed) -->
         <div class="header-controls">
             <div id="auth-controls">
                 <button id="loginBtn" class="auth-btn">Log In</button>
-                <div id="userProfileBtn" class="user-profile-btn" aria-label="Open Account Menu" role="button" tabindex="0">
+                <!-- The Profile Picture now acts as the sole trigger[cite: 1] -->
+                <div id="userProfileBtn" class="user-profile-btn" aria-label="Open Menu" role="button" tabindex="0">
                     <img id="headerAvatar" src="" alt="Profile">
                 </div>
             </div>
-            
-            <button id="settingsBtn" class="header-btn" title="Settings" aria-label="Open settings menu" aria-haspopup="true" aria-expanded="false">
-                <i class="fa-solid fa-cog" aria-hidden="true"></i>
-            </button>
-            
-            <div class="settings-menu" id="settingsMenu" role="menu" aria-labelledby="settingsBtn">
-                <div class="settings-menu-item toggle-item" id="menuDarkModeToggle" role="menuitem" tabindex="0">
-                    <div class="menu-item-label">
-                        <i class="fa-solid fa-moon" id="menuThemeIcon" aria-hidden="true"></i>
-                        <span id="menuThemeText">Dark Mode</span>
-                    </div>
-                    <span class="visually-hidden" id="menuThemeState">Off</span>
+        </div>
+
+        <!-- New Unified Modal[cite: 1] -->
+        <div class="modal-overlay" id="unifiedModalOverlay">
+            <div class="modal-content unified-modal" id="unifiedModalContent" role="dialog" aria-modal="true">
+                <button class="close-modal-btn" id="closeUnifiedModalBtn" aria-label="Close Menu"><i class="fa-solid fa-times"></i></button>
+                
+                <!-- Account Info[cite: 1] -->
+                <div class="account-profile-info">
+                    <img id="modalAvatar" src="" alt="Profile Picture" class="modal-avatar-img">
+                    <h3 id="modalName" class="modal-user-name">Loading...</h3>
+                    <p id="modalEmail" class="modal-user-email">loading@example.com</p>
                 </div>
-                <div class="settings-menu-divider"></div>
-                <div class="settings-menu-item" id="menuDownloadPdfBtn" role="menuitem" tabindex="0">
-                    <i class="fa-solid fa-file-pdf" aria-hidden="true"></i>
-                    Download PDF
+                
+                <!-- Settings Options (Implemented as buttons)[cite: 1] -->
+                <div class="settings-menu-list">
+                    <button class="settings-menu-item toggle-item" id="menuDarkModeToggle" role="menuitem" tabindex="0">
+                        <div class="menu-item-label">
+                            <i class="fa-solid fa-moon" id="menuThemeIcon" aria-hidden="true"></i>
+                            <span id="menuThemeText">Dark Mode</span>
+                        </div>
+                        <span class="visually-hidden" id="menuThemeState">Off</span>
+                    </button>
+                    <div class="settings-menu-divider"></div>
+                    <button class="settings-menu-item" id="menuDownloadPdfBtn" role="menuitem" tabindex="0">
+                        <i class="fa-solid fa-file-pdf" aria-hidden="true"></i>
+                        Download PDF
+                    </button>
+                    <div class="settings-menu-divider"></div>
+                    <button class="settings-menu-item" id="menuClearAllBtn" role="menuitem" tabindex="0">
+                        <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                        Clear All Items
+                    </button>
                 </div>
-                <div class="settings-menu-divider"></div>
-                <div class="settings-menu-item" id="menuClearAllBtn" role="menuitem" tabindex="0">
-                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
-                    Clear All Items
+
+                <!-- Account Actions[cite: 1] -->
+                <div class="account-modal-links">
+                    <a href="https://atikle.github.io/workspace/page?view=account-center" class="modal-btn manage-account-btn">
+                        Manage Account
+                    </a>
+                    <button id="modalLogoutBtn" class="modal-btn logout-account-btn">
+                        <i class="fa-solid fa-sign-out-alt"></i> Log Out
+                    </button>
                 </div>
             </div>
         </div>

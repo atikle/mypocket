@@ -41,21 +41,19 @@ const addItemInput = document.getElementById('addItemInput');
 const searchInput = document.getElementById('searchInput');
 const clearSearchBtn = document.getElementById('clearSearchBtn');
 
-const settingsBtn = document.getElementById('settingsBtn');
-const settingsMenu = document.getElementById('settingsMenu');
+// Settings Elements (Now inside Unified Modal)
 const menuDarkModeToggle = document.getElementById('menuDarkModeToggle');
 const menuThemeIcon = document.getElementById('menuThemeIcon');
 const menuThemeText = document.getElementById('menuThemeText');
 const menuThemeState = document.getElementById('menuThemeState');
-
 const menuDownloadPdfBtn = document.getElementById('menuDownloadPdfBtn');
 const menuClearAllBtn = document.getElementById('menuClearAllBtn');
 
-// Account Modal DOM
+// Unified Modal DOM
 const userProfileBtn = document.getElementById('userProfileBtn');
 const headerAvatar = document.getElementById('headerAvatar');
-const accountModalOverlay = document.getElementById('accountModalOverlay');
-const closeAccountModalBtn = document.getElementById('closeAccountModalBtn');
+const unifiedModalOverlay = document.getElementById('unifiedModalOverlay');
+const closeUnifiedModalBtn = document.getElementById('closeUnifiedModalBtn');
 const modalAvatar = document.getElementById('modalAvatar');
 const modalName = document.getElementById('modalName');
 const modalEmail = document.getElementById('modalEmail');
@@ -200,29 +198,37 @@ async function initFirebase() {
     }
 }
 
-// --- Account Modal Logic ---
-function openAccountModal() {
-    accountModalOverlay.classList.add('show');
-}
-function closeAccountModal() {
-    accountModalOverlay.classList.remove('show');
+// --- Unified Modal Logic ---
+function openUnifiedModal() {
+    unifiedModalOverlay.classList.add('show');
 }
 
-userProfileBtn.addEventListener('click', openAccountModal);
+function closeUnifiedModal() {
+    unifiedModalOverlay.classList.remove('show');
+    resetMenuClearAllBtn(); // Resets the "Are you sure?" clear all state
+}
+
+userProfileBtn.addEventListener('click', openUnifiedModal);
 userProfileBtn.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        openAccountModal();
+        openUnifiedModal();
     }
 });
 
-closeAccountModalBtn.addEventListener('click', closeAccountModal);
-accountModalOverlay.addEventListener('click', (e) => {
-    if (e.target === accountModalOverlay) closeAccountModal();
+closeUnifiedModalBtn.addEventListener('click', closeUnifiedModal);
+unifiedModalOverlay.addEventListener('click', (e) => {
+    if (e.target === unifiedModalOverlay) closeUnifiedModal();
+});
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && unifiedModalOverlay.classList.contains('show')) {
+        closeUnifiedModal();
+        userProfileBtn.focus();
+    }
 });
 
 modalLogoutBtn.addEventListener('click', () => {
-    closeAccountModal();
+    closeUnifiedModal();
     signOut(auth);
 });
 
@@ -325,7 +331,7 @@ async function updatePocketItem(itemId, newText) {
     }
 }
 
-// --- Clear All Logic (In Settings Menu) ---
+// --- Clear All Logic ---
 let clearAllTimeout;
 
 function resetMenuClearAllBtn() {
@@ -337,7 +343,7 @@ menuClearAllBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
     if (!userId) {
         showNotification("You must be logged in to clear items.", true);
-        closeSettingsMenu();
+        closeUnifiedModal();
         return;
     }
 
@@ -357,7 +363,7 @@ menuClearAllBtn.addEventListener('click', async (e) => {
             await Promise.all(deletePromises);
 
             resetMenuClearAllBtn();
-            closeSettingsMenu();
+            closeUnifiedModal();
             showNotification("All items have been cleared.", false);
 
         } catch (error) {
@@ -378,30 +384,6 @@ menuClearAllBtn.addEventListener('click', async (e) => {
     }
 });
 
-// --- Settings Menu Logic ---
-function closeSettingsMenu() {
-    settingsMenu.classList.remove('show');
-    settingsBtn.setAttribute('aria-expanded', 'false');
-    resetMenuClearAllBtn();
-}
-settingsBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const isShown = settingsMenu.classList.toggle('show');
-    settingsBtn.setAttribute('aria-expanded', isShown);
-    if (!isShown) resetMenuClearAllBtn();
-});
-window.addEventListener('click', (e) => {
-    if (!settingsMenu.contains(e.target) && !settingsBtn.contains(e.target)) {
-        closeSettingsMenu();
-    }
-});
-window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && settingsMenu.classList.contains('show')) {
-        closeSettingsMenu();
-        settingsBtn.focus();
-    }
-});
-
 // --- Theme Toggle Logic ---
 function applyTheme(theme) {
     const themeColorMeta = document.getElementById('theme-color-meta');
@@ -413,7 +395,6 @@ function applyTheme(theme) {
         menuThemeText.textContent = 'Dark Mode';
         menuThemeState.textContent = 'On';
 
-        // Match the new polished dark mode header color
         if (themeColorMeta) themeColorMeta.setAttribute('content', '#1c1c1e');
     } else {
         document.documentElement.classList.remove('dark');
@@ -422,7 +403,6 @@ function applyTheme(theme) {
         menuThemeText.textContent = 'Light Mode';
         menuThemeState.textContent = 'Off';
 
-        // Match the light mode header color
         if (themeColorMeta) themeColorMeta.setAttribute('content', '#ffffff');
     }
     localStorage.setItem(POCKET_THEME_KEY, theme);
@@ -662,13 +642,13 @@ function generateAndDownloadPDF() {
 downloadPdfBtn.addEventListener('click', generateAndDownloadPDF);
 menuDownloadPdfBtn.addEventListener('click', () => {
     generateAndDownloadPDF();
-    closeSettingsMenu();
+    closeUnifiedModal();
 });
 menuDownloadPdfBtn.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         generateAndDownloadPDF();
-        closeSettingsMenu();
+        closeUnifiedModal();
     }
 });
 
