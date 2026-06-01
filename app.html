@@ -974,25 +974,8 @@
             }
 
             .close-modal-btn {
-                position: absolute;
                 top: calc(15px + env(safe-area-inset-top));
                 right: calc(20px + env(safe-area-inset-right));
-                width: 40px;
-                height: 40px;
-                border-radius: 50%;
-                background-color: rgba(128, 128, 128, 0.2); /* Universal gray overlay for both light & OLED dark modes */
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                padding: 0;
-                margin: 0;
-                z-index: 1010;
-                backdrop-filter: blur(8px); /* Optional: Adds a nice liquid glass effect */
-                -webkit-backdrop-filter: blur(8px);
-            }
-            
-            .close-modal-btn:hover {
-                background-color: rgba(128, 128, 128, 0.3);
             }
         }
     </style>
