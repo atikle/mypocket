@@ -392,6 +392,10 @@
             opacity: 1;
             transform: scale(1);
             overflow: hidden; 
+            max-height: 280px; 
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
         }
         .post-header {
             display: flex;
@@ -424,6 +428,11 @@
         }
         .post-body {
             padding: 15px;
+            flex-grow: 1;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 6; 
+            -webkit-box-orient: vertical;
         }
         
         /* Styling list markup & rich text inside notes */
@@ -1046,24 +1055,8 @@
         }
 
         #pocketGridContainer.grid-view .pocket-post-item {
-            max-height: 350px; 
-            display: flex;
-            flex-direction: column;
             margin-bottom: 0; 
             width: 100%;
-        }
-
-        #pocketGridContainer.grid-view .post-body {
-            flex-grow: 1;
-            overflow: hidden; /* Stops the scrolling */
-            
-            /* Adds a clean ellipsis (...) if the text is too long */
-            display: -webkit-box;
-            -webkit-line-clamp: 8; /* Adjust this number to show more/less lines */
-            -webkit-box-orient: vertical;
-        }
-        #pocketGridContainer.grid-view .post-body::-webkit-scrollbar {
-            display: none; 
         }
 
         @media (max-width: 640px) {
@@ -1212,7 +1205,10 @@
             <button id="closeEditorBtn" class="icon-btn" aria-label="Close">
                 <i class="fa-solid fa-arrow-left"></i>
             </button>
-            <button id="saveEditorBtn" class="text-save-btn" aria-label="Save">Save</button>
+            <div style="display: flex; gap: 8px;">
+                <button id="editModeBtn" class="text-save-btn" aria-label="Edit" style="display:none; color: var(--pocket-edit);">Edit</button>
+                <button id="saveEditorBtn" class="text-save-btn" aria-label="Save">Save</button>
+            </div>
         </div>
         
         <div class="editor-toolbar">

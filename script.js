@@ -51,6 +51,8 @@ const editorModal = document.getElementById('editorModal');
 const editorModalOverlay = document.getElementById('editorModalOverlay');
 const closeEditorBtn = document.getElementById('closeEditorBtn');
 const saveEditorBtn = document.getElementById('saveEditorBtn');
+const editModeBtn = document.getElementById('editModeBtn'); // NEW: Edit Mode Button
+const editorToolbar = document.querySelector('.editor-toolbar'); // NEW: Editor Toolbar
 const editorInput = document.getElementById('editorInput');
 let activeEditId = null;
 
@@ -266,7 +268,6 @@ async function initFirebase() {
 function openUnifiedModal() {
     unifiedModalOverlay.classList.add('show');
     document.body.classList.add('modal-open'); 
-    // Add a state to the browser history
     history.pushState({ modalOpen: 'unified' }, '');
 }
 
@@ -275,7 +276,6 @@ function closeUnifiedModal(fromPopState) {
     document.body.classList.remove('modal-open'); 
     resetMenuClearAllBtn(); 
     
-    // If closed via UI (not back button), pop the state to keep history clean
     if (fromPopState !== true && history.state && history.state.modalOpen === 'unified') {
         history.back();
     }
@@ -896,11 +896,6 @@ function renderPocketGrid(items) {
                                aria-label="Search for '${truncatedText}' on Google">
                                 <i class="fa-brands fa-google" aria-hidden="true"></i>
                             </a>
-                            <button class="item-action-btn item-edit-btn" 
-                                    title="Edit"
-                                    aria-label="Edit item: '${truncatedText}'">
-                                <i class="fas fa-pencil" aria-hidden="true"></i>
-                            </button>
                             <button class="item-action-btn item-delete-btn" 
                                     title="Delete"
                                     aria-label="Delete item: '${truncatedText}'">
@@ -915,14 +910,13 @@ function renderPocketGrid(items) {
     });
 }
 
-
 // --- Event Delegation ---
 pocketGridContainer.addEventListener('click', (e) => {
+    // 1. Handle Delete Button
     const deleteButton = e.target.closest('.item-delete-btn');
     if (deleteButton) {
         const itemEl = deleteButton.closest('.pocket-post-item');
         const itemId = itemEl.dataset.id;
-
         itemEl.classList.add('pocket-item-fade-out');
         setTimeout(() => {
             deletePocketItem(itemId);
@@ -930,13 +924,16 @@ pocketGridContainer.addEventListener('click', (e) => {
         return;
     }
 
-    const editButton = e.target.closest('.item-edit-btn');
-    if (editButton) {
-        const itemEl = editButton.closest('.pocket-post-item');
+    // 2. Ignore clicks on the Google Search anchor tag
+    const searchButton = e.target.closest('.item-search-btn');
+    if (searchButton) return; 
+
+    // 3. Click anywhere else on the card opens it in VIEW mode
+    const itemEl = e.target.closest('.pocket-post-item');
+    if (itemEl) {
         const itemId = itemEl.dataset.id;
         const currentHTML = itemEl.querySelector('.item-text').innerHTML;
-        
-        openEditor(itemId, currentHTML);
+        openEditor(itemId, currentHTML, 'view'); // Pass 'view'
     }
 });
 
@@ -1001,16 +998,27 @@ if (localStorage.getItem(CACHED_USER_KEY) === "true") {
 }
 
 // --- Universal Editor Logic ---
-function openEditor(itemId = null, currentHtml = '') {
+function openEditor(itemId = null, currentHtml = '', mode = 'edit') {
     activeEditId = itemId;
     editorInput.innerHTML = currentHtml;
+    
+    if (mode === 'view') {
+        editModeBtn.style.display = 'inline-block';
+        saveEditorBtn.style.display = 'none';
+        editorToolbar.style.display = 'none';
+        editorInput.setAttribute('contenteditable', 'false');
+    } else {
+        editModeBtn.style.display = 'none';
+        saveEditorBtn.style.display = 'inline-block';
+        editorToolbar.style.display = 'flex';
+        editorInput.setAttribute('contenteditable', 'true');
+        setTimeout(() => editorInput.focus(), 300);
+    }
+
     editorModal.classList.add('open');
     editorModalOverlay.classList.add('show');
     document.body.classList.add('modal-open'); 
-    // Add a state to the browser history
     history.pushState({ modalOpen: 'editor' }, '');
-    
-    setTimeout(() => editorInput.focus(), 300);
 }
 
 function closeEditor(fromPopState) {
@@ -1021,7 +1029,6 @@ function closeEditor(fromPopState) {
     activeEditId = null;
     editorInput.innerHTML = '';
     
-    // If closed via UI (not back button), pop the state to keep history clean
     if (fromPopState !== true && history.state && history.state.modalOpen === 'editor') {
         history.back();
     }
@@ -1029,11 +1036,19 @@ function closeEditor(fromPopState) {
 
 mainFab.addEventListener('click', () => {
     triggerHaptic(15);
-    openEditor();
+    openEditor(null, '', 'edit');
 });
 
 closeEditorBtn.addEventListener('click', closeEditor);
 editorModalOverlay.addEventListener('click', closeEditor);
+
+editModeBtn.addEventListener('click', () => {
+    editModeBtn.style.display = 'none';
+    saveEditorBtn.style.display = 'inline-block';
+    editorToolbar.style.display = 'flex';
+    editorInput.setAttribute('contenteditable', 'true');
+    editorInput.focus();
+});
 
 // Save with shortcut keys
 editorInput.addEventListener('keydown', (event) => {
@@ -1070,9 +1085,8 @@ window.addEventListener('beforeinstallprompt', (e) => {
 
 // --- Handle Hardware Back Button & Swipes ---
 window.addEventListener('popstate', (e) => {
-    // If a user triggers the back gesture and a modal is open, intercept it and close the modal
     if (unifiedModalOverlay.classList.contains('show')) {
-        closeUnifiedModal(true); // Pass true so it doesn't trigger another history.back()
+        closeUnifiedModal(true); 
     }
     if (editorModal.classList.contains('open')) {
         closeEditor(true);
