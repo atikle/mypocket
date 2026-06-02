@@ -469,6 +469,20 @@
             display: -webkit-box;
             -webkit-line-clamp: 6; 
             -webkit-box-orient: vertical;
+            position: relative; /* NEW: Required to anchor the shadow to the bottom of this container */
+        }
+        
+        /* NEW: Modern upward fade/shadow effect */
+        .post-body::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 45px; /* Controls how tall the fade effect is */
+            /* Gradients from the exact card background color up to transparent */
+            background: linear-gradient(to top, var(--card-background-1) 10%, transparent);
+            pointer-events: none; /* Ensures it doesn't block any interactions */
         }
         
         /* --- Card Actions (Header Integration) --- */
@@ -483,7 +497,8 @@
             align-items: center;
             gap: 4px;
         }
-        .item-menu-btn {
+        /* Increased specificity so it properly overrides .item-action-btn on desktop */
+        .item-action-btn.item-menu-btn {
             display: none;
         }
         .item-action-btn {
@@ -1154,10 +1169,16 @@
             .post-header { padding: 10px 12px; }
             .post-body { padding: 12px; }
 
-            /* 3. Reduce the gap specifically for grid view */
+            /* 3. STRICT Grid constraint to prevent cards from overflowing */
             #pocketGridContainer.grid-view {
-                grid-template-columns: repeat(2, 1fr);
+                /* Changed from 1fr to minmax(0, 1fr) */
+                grid-template-columns: repeat(2, minmax(0, 1fr));
                 gap: 8px; 
+            }
+            
+            /* Ensure the card strictly obeys the grid column width */
+            #pocketGridContainer.grid-view .pocket-post-item {
+                min-width: 0;
             }
         }
     </style>
