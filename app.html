@@ -1069,23 +1069,26 @@
                 right: calc(20px + env(safe-area-inset-right));
             }
 
-            /* Editor Modal Slide Up */
+            /* Editor Modal Slide Up - GPU Accelerated */
             .editor-modal {
-                top: 100%;
+                top: 0; /* Anchor it to the top instead of pushing it down */
                 left: 0;
                 width: 100%;
                 height: 100%;
                 max-width: none;
                 max-height: none;
-                transform: none;
                 border-radius: 0;
                 padding-top: env(safe-area-inset-top);
                 opacity: 1; 
-                transition: top 0.3s var(--ease-out-quad);
+                /* 1. Push it off-screen using GPU-accelerated transform */
+                transform: translateY(100%); 
+                /* 2. iOS-like smooth easing curve */
+                transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1); 
+                will-change: transform; /* Hints to the browser to prepare the GPU */
             }
             .editor-modal.open {
-                top: 0;
-                transform: none;
+                /* Bring it back to its natural position */
+                transform: translateY(0);
             }
             
             /* Only apply the dropdown logic when in grid view on mobile */
