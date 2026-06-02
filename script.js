@@ -877,33 +877,36 @@ function renderPocketGrid(items) {
         const truncatedText = plainTextForAria.length > 50 ? plainTextForAria.substring(0, 50) + '...' : plainTextForAria;
 
         itemEl.innerHTML = `
-                    <div class="post-header">
-                        <div class="post-header-logo">
-                            <i class="fa-solid fa-bookmark" aria-hidden="true"></i>
-                        </div>
-                        <div class="post-header-date">
-                            ${itemDate}${editedIndicator}
-                        </div>
+            <div class="post-header">
+                <div class="post-header-logo">
+                    <i class="fa-solid fa-bookmark" aria-hidden="true"></i>
+                </div>
+                <div class="post-header-date">
+                    ${itemDate}${editedIndicator}
+                </div>
+                <div class="item-actions">
+                    <button class="item-action-btn item-menu-btn" aria-label="More options">
+                        <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
+                    </button>
+                    <div class="item-actions-group">
+                        <a href="https://www.google.com/search?q=${encodeURIComponent(plainTextForAria)}" 
+                           target="_blank" 
+                           class="item-action-btn item-search-btn" 
+                           title="Search Google"
+                           aria-label="Search for '${truncatedText}' on Google">
+                            <i class="fa-brands fa-google" aria-hidden="true"></i>
+                        </a>
+                        <button class="item-action-btn item-delete-btn" 
+                                title="Delete"
+                                aria-label="Delete item: '${truncatedText}'">
+                            <i class="fas fa-trash" aria-hidden="true"></i>
+                        </button>
                     </div>
-                    <div class="post-body">
-                        </div>
-                    <div class="post-footer">
-                        <div class="item-actions">
-                            <a href="https://www.google.com/search?q=${encodeURIComponent(plainTextForAria)}" 
-                               target="_blank" 
-                               class="item-action-btn item-search-btn" 
-                               title="Search on Google"
-                               aria-label="Search for '${truncatedText}' on Google">
-                                <i class="fa-brands fa-google" aria-hidden="true"></i>
-                            </a>
-                            <button class="item-action-btn item-delete-btn" 
-                                    title="Delete"
-                                    aria-label="Delete item: '${truncatedText}'">
-                                <i class="fas fa-trash" aria-hidden="true"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
+                </div>
+            </div>
+            <div class="post-body">
+            </div>
+        `;
 
         itemEl.querySelector('.post-body').prepend(textDiv);
         pocketGridContainer.appendChild(itemEl);
@@ -911,8 +914,29 @@ function renderPocketGrid(items) {
 }
 
 // --- Event Delegation ---
+// --- Event Delegation ---
 pocketGridContainer.addEventListener('click', (e) => {
-    // 1. Handle Delete Button
+    
+    // 1. Handle Three-Dot Menu Button Click
+    const menuBtn = e.target.closest('.item-menu-btn');
+    if (menuBtn) {
+        // Close any other open menus first
+        document.querySelectorAll('.item-actions.show-menu').forEach(el => {
+            if (el !== menuBtn.closest('.item-actions')) {
+                el.classList.remove('show-menu');
+            }
+        });
+        // Toggle the clicked menu
+        menuBtn.closest('.item-actions').classList.toggle('show-menu');
+        return; // Stop here so it doesn't open the card
+    }
+
+    // If clicking anywhere else on the card, close the open menus
+    document.querySelectorAll('.item-actions.show-menu').forEach(el => {
+        el.classList.remove('show-menu');
+    });
+
+    // 2. Handle Delete Button
     const deleteButton = e.target.closest('.item-delete-btn');
     if (deleteButton) {
         const itemEl = deleteButton.closest('.pocket-post-item');
@@ -924,16 +948,25 @@ pocketGridContainer.addEventListener('click', (e) => {
         return;
     }
 
-    // 2. Ignore clicks on the Google Search anchor tag
+    // 3. Ignore clicks on the Google Search anchor tag
     const searchButton = e.target.closest('.item-search-btn');
     if (searchButton) return; 
 
-    // 3. Click anywhere else on the card opens it in VIEW mode
+    // 4. Click anywhere else on the card opens it in VIEW mode
     const itemEl = e.target.closest('.pocket-post-item');
     if (itemEl) {
         const itemId = itemEl.dataset.id;
         const currentHTML = itemEl.querySelector('.item-text').innerHTML;
-        openEditor(itemId, currentHTML, 'view'); // Pass 'view'
+        openEditor(itemId, currentHTML, 'view'); 
+    }
+});
+
+// Close mobile grid menus when clicking completely outside the grid items
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.item-actions')) {
+        document.querySelectorAll('.item-actions.show-menu').forEach(el => {
+            el.classList.remove('show-menu');
+        });
     }
 });
 
