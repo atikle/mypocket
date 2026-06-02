@@ -472,17 +472,19 @@
             position: relative; /* NEW: Required to anchor the shadow to the bottom of this container */
         }
         
-        /* NEW: Modern upward fade/shadow effect */
+        /* --- Modern upward fade/shadow effect --- */
         .post-body::after {
             content: '';
             position: absolute;
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 45px; /* Controls how tall the fade effect is */
-            /* Gradients from the exact card background color up to transparent */
+            height: 45px; 
             background: linear-gradient(to top, var(--card-background-1) 10%, transparent);
-            pointer-events: none; /* Ensures it doesn't block any interactions */
+            pointer-events: none; 
+            /* NEW: Match the card's border radius so it doesn't poke out */
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
         }
         
         /* --- Card Actions (Header Integration) --- */
