@@ -266,12 +266,19 @@ async function initFirebase() {
 function openUnifiedModal() {
     unifiedModalOverlay.classList.add('show');
     document.body.classList.add('modal-open'); 
+    // Add a state to the browser history
+    history.pushState({ modalOpen: 'unified' }, '');
 }
 
-function closeUnifiedModal() {
+function closeUnifiedModal(fromPopState) {
     unifiedModalOverlay.classList.remove('show');
     document.body.classList.remove('modal-open'); 
     resetMenuClearAllBtn(); 
+    
+    // If closed via UI (not back button), pop the state to keep history clean
+    if (fromPopState !== true && history.state && history.state.modalOpen === 'unified') {
+        history.back();
+    }
 }
 
 userProfileBtn.addEventListener('click', openUnifiedModal);
@@ -1000,17 +1007,24 @@ function openEditor(itemId = null, currentHtml = '') {
     editorModal.classList.add('open');
     editorModalOverlay.classList.add('show');
     document.body.classList.add('modal-open'); 
+    // Add a state to the browser history
+    history.pushState({ modalOpen: 'editor' }, '');
     
     setTimeout(() => editorInput.focus(), 300);
 }
 
-function closeEditor() {
+function closeEditor(fromPopState) {
     editorModal.classList.remove('open');
     editorModalOverlay.classList.remove('show');
     document.body.classList.remove('modal-open');
     editorInput.blur();
     activeEditId = null;
     editorInput.innerHTML = '';
+    
+    // If closed via UI (not back button), pop the state to keep history clean
+    if (fromPopState !== true && history.state && history.state.modalOpen === 'editor') {
+        history.back();
+    }
 }
 
 mainFab.addEventListener('click', () => {
@@ -1051,6 +1065,17 @@ window.addEventListener('beforeinstallprompt', (e) => {
     deferredPrompt = e;
     if (menuInstallAppBtn) {
         menuInstallAppBtn.style.display = 'flex';
+    }
+});
+
+// --- Handle Hardware Back Button & Swipes ---
+window.addEventListener('popstate', (e) => {
+    // If a user triggers the back gesture and a modal is open, intercept it and close the modal
+    if (unifiedModalOverlay.classList.contains('show')) {
+        closeUnifiedModal(true); // Pass true so it doesn't trigger another history.back()
+    }
+    if (editorModal.classList.contains('open')) {
+        closeEditor(true);
     }
 });
 

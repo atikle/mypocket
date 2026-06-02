@@ -1054,26 +1054,31 @@
         }
 
         #pocketGridContainer.grid-view .post-body {
-            overflow-y: auto;
             flex-grow: 1;
-            scrollbar-width: none; 
+            overflow: hidden; /* Stops the scrolling */
+            
+            /* Adds a clean ellipsis (...) if the text is too long */
+            display: -webkit-box;
+            -webkit-line-clamp: 8; /* Adjust this number to show more/less lines */
+            -webkit-box-orient: vertical;
         }
         #pocketGridContainer.grid-view .post-body::-webkit-scrollbar {
             display: none; 
         }
 
         @media (max-width: 640px) {
+            /* 1. Reduce the gap between cards in standard (list) view */
+            #pocketGridContainer { gap: 10px; }
+
+            /* 2. Reduce the inner padding of the cards */
+            .post-header { padding: 10px 12px; }
+            .post-body { padding: 12px; }
+            .post-footer { padding: 8px 12px; }
+
+            /* 3. Reduce the gap specifically for grid view */
             #pocketGridContainer.grid-view {
                 grid-template-columns: repeat(2, 1fr);
-                gap: 12px;
-            }
-            #pocketGridContainer.grid-view .pocket-post-item {
-                max-height: 250px; 
-            }
-            #pocketGridContainer.grid-view .post-footer .item-actions {
-                flex-wrap: wrap; 
-                justify-content: space-around;
-                gap: 4px;
+                gap: 8px; /* Reduced from 12px */
             }
         }
     </style>
